@@ -1,0 +1,98 @@
+// =====================================================================
+// Cadastro / edição de equipamento.
+// Status e horímetro NÃO são editados aqui (status: botão "Alterar status";
+// horímetro: leituras da Etapa 4).
+// =====================================================================
+import { esc, icones, toast, traduzirErro, opcoes, textoOuNulo } from '../ui.js';
+import * as svc from '../services/equipamentos.js';
+import { abrirCategorias } from './equipamentos.js';
+
+export async function render(el, [id]) {
+  const [e, categorias] = await Promise.all([id ? svc.lerEquipamento(id) : null, svc.listarCategorias()]);
+  if (id && !e) { el.innerHTML = '<div class="alerta aviso">Equipamento não encontrado.</div>'; return; }
+  const v = e || { criticality: 'B', has_hour_meter: true };
+  const cats = categorias.filter((c) => c.active || c.id === v.category_id);
+  const campo = (nome, rotulo, extra = '', tipo = 'text') => `<div class="campo"><label for="c-${nome}">${rotulo}</label>
+    <input id="c-${nome}" name="${nome}" type="${tipo}" value="${esc(v[nome] ?? '')}" ${extra}></div>`;
+
+  el.innerHTML = `
+    <a class="voltar" href="${id ? `#/equipamentos/${id}` : '#/equipamentos'}"><i data-lucide="arrow-left"></i> Voltar</a>
+    <div class="cabecalho-pagina"><div><h1>${id ? `Editar ${esc(e.tag)}` : 'Novo equipamento'}</h1>
+      <p>${id ? 'O status é alterado pelo botão "Alterar status" na ficha, com motivo.' : 'O equipamento começa como "Operando". O horímetro é registrado depois, pelas leituras.'}</p></div></div>
+    <form id="f-equip" class="card"><div class="card-corpo grade" style="gap:18px">
+      <h3>Identificação</h3>
+      <div class="grade grade-form">
+        ${campo('tag', 'TAG (código único) *', 'required maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9._\\/ \\-]{0,39}" placeholder="Ex.: LAS-01" style="text-transform:uppercase"')}
+        ${campo('name', 'Nome do equipamento *', 'required minlength="2" maxlength="120" placeholder="Ex.: Máquina de corte a laser 01"')}
+        <div class="campo"><label for="c-category_id">Categoria</label>
+          <div class="linha-form"><select id="c-category_id" name="category_id">${opcoes(cats, { valor: 'id', rotulo: 'name', selecionado: v.category_id, vazio: 'Sem categoria' })}</select>
+          <button type="button" class="btn btn-icone" id="btn-cat" title="Gerenciar categorias"><i data-lucide="tags"></i></button></div></div>
+        ${campo('sector', 'Setor', 'maxlength="80" placeholder="Ex.: Laminação a frio" list="lista-setores"')}
+        ${campo('location', 'Localização', 'maxlength="120" placeholder="Ex.: Galpão 2, linha 3"')}
+        <div class="campo"><label for="c-criticality">Criticidade *</label><select id="c-criticality" name="criticality" required>
+          ${Object.entries(svc.CRITICIDADE).map(([k, t]) => `<option value="${k}" ${v.criticality === k ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+      </div>
+      <h3>Dados técnicos</h3>
+      <div class="grade grade-form">
+        ${campo('manufacturer', 'Fabricante', 'maxlength="80"')}
+        ${campo('model', 'Modelo', 'maxlength="80"')}
+        ${campo('serial_number', 'Nº de série', 'maxlength="80"')}
+        ${campo('manufacture_year', 'Ano de fabricação', 'min="1900" max="2100" step="1"', 'number')}
+        ${campo('installed_at', 'Data de instalação', '', 'date')}
+      </div>
+      <h3>Horímetro</h3>
+      <div class="grade grade-form">
+        <label class="check-linha"><input type="checkbox" name="has_hour_meter" ${v.has_hour_meter ? 'checked' : ''}> Este equipamento possui horímetro</label>
+        ${campo('hour_meter_stale_days', 'Alertar após quantos dias sem leitura', 'min="1" max="365" step="1" placeholder="Padrão da empresa"', 'number')}
+      </div>
+      <div class="campo"><label for="c-notes">Observações</label><textarea id="c-notes" name="notes" rows="3" maxlength="2000">${esc(v.notes || '')}</textarea></div>
+      <div id="msg-equip"></div>
+      <div class="acoes"><button class="btn btn-primario" type="submit"><i data-lucide="save"></i> ${id ? 'Salvar alterações' : 'Cadastrar equipamento'}</button>
+        <a class="btn" href="${id ? `#/equipamentos/${id}` : '#/equipamentos'}">Cancelar</a></div>
+    </div></form>
+    <datalist id="lista-setores"></datalist>`;
+
+  svc.listarEquipamentos().then((lista) => {
+    const setores = [...new Set(lista.map((x) => x.sector).filter(Boolean))].sort();
+    el.querySelector('#lista-setores').innerHTML = setores.map((s) => `<option value="${esc(s)}">`).join('');
+  }).catch(() => {});
+
+  el.querySelector('#btn-cat').addEventListener('click', () => abrirCategorias(async () => {
+    const atual = el.querySelector('#c-category_id').value;
+    const lista = (await svc.listarCategorias()).filter((c) => c.active || c.id === atual);
+    el.querySelector('#c-category_id').innerHTML = opcoes(lista, { valor: 'id', rotulo: 'name', selecionado: atual, vazio: 'Sem categoria' });
+  }));
+
+  el.querySelector('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const btn = f.querySelector('[type=submit]'); btn.disabled = true;
+    const num = (x) => (x === '' ? null : Number(x));
+    const dados = {
+      tag: f.tag.value.trim().toUpperCase(),
+      name: f.name.value.trim(),
+      category_id: f.category_id.value || null,
+      sector: textoOuNulo(f.sector.value),
+      location: textoOuNulo(f.location.value),
+      criticality: f.criticality.value,
+      manufacturer: textoOuNulo(f.manufacturer.value),
+      model: textoOuNulo(f.model.value),
+      serial_number: textoOuNulo(f.serial_number.value),
+      manufacture_year: num(f.manufacture_year.value),
+      installed_at: f.installed_at.value || null,
+      has_hour_meter: f.has_hour_meter.checked,
+      hour_meter_stale_days: num(f.hour_meter_stale_days.value),
+      notes: textoOuNulo(f.notes.value),
+    };
+    try {
+      const r = id ? await svc.salvarEquipamento(id, dados) : await svc.criarEquipamento(dados);
+      toast(id ? 'Equipamento atualizado.' : 'Equipamento cadastrado.');
+      location.hash = `#/equipamentos/${r.id}`;
+    } catch (err) {
+      const msg = /equipment_tag_idx|duplicate/i.test(`${err.message}`) ? `Já existe um equipamento com a TAG ${dados.tag}.` : traduzirErro(err);
+      el.querySelector('#msg-equip').innerHTML = `<div class="alerta perigo">${esc(msg)}</div>`;
+      btn.disabled = false;
+    }
+  });
+  icones();
+}

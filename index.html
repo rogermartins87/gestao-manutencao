@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16212e">
+  <!-- Proteção: o navegador só carrega e envia dados para os endereços listados aqui -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Gestão de Manutenção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f3f4f6; color: #535d6b; }
+    .carregando-inicial { min-height: 100vh; display: grid; place-items: center; }
+  </style>
+</head>
+<body>
+  <div id="raiz">
+    <div class="carregando-inicial">Carregando…</div>
+  </div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <noscript>Este sistema precisa do JavaScript habilitado no navegador.</noscript>
+
+  <!--
+    Carregador com versão: busca "versao.json" sempre direto do servidor
+    (sem memória do navegador) e acrescenta ?v=<versão> a cada arquivo.
+    Assim, toda publicação nova é carregada na hora por todos.
+    Sem internet ou sem versao.json (uso local), carrega os arquivos normalmente.
+  -->
+  <script>
+    (function () {
+      var abs = function (p) { return new URL(p, document.baseURI).href; };
+
+      function iniciar(arquivos) {
+        arquivos = arquivos || {};
+        var css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = 'css/styles.css' + (arquivos['css/styles.css'] ? '?v=' + arquivos['css/styles.css'] : '');
+        document.head.appendChild(css);
+
+        var mapa = {};
+        Object.keys(arquivos).forEach(function (p) {
+          if (/\.js$/.test(p)) mapa[abs(p)] = abs(p) + '?v=' + arquivos[p];
+        });
+        var im = document.createElement('script');
+        im.type = 'importmap';
+        im.textContent = JSON.stringify({ imports: mapa });
+        document.head.appendChild(im);
+
+        import('./js/app.js').catch(function (e) {
+          console.error(e);
+          document.getElementById('raiz').innerHTML =
+            '<p style="padding:24px">Não foi possível carregar o sistema. Verifique a internet e recarregue a página.</p>';
+        });
+      }
+
+      var pronto = false;
+      var seguir = function (a) { if (!pronto) { pronto = true; iniciar(a); } };
+      setTimeout(function () { seguir(null); }, 5000); // internet lenta: não trava a abertura
+      fetch('versao.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (v) { seguir(v && v.arquivos); })
+        .catch(function () { seguir(null); });
+    })();
+  </script>
+</body>
+</html>
