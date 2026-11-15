@@ -1432,3 +1432,21 @@ html:has(.tela-acesso), body:has(.tela-acesso) { background: #021230; } /* topo 
   .dash-grade.dash-3 { grid-template-columns: 1fr; }
   .os-bloco { min-height: 104px; padding: 12px; }
 }
+
+/* ---------- Dica "Salvar como app" (só celular) ---------- */
+.dica-app { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 90;
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px 14px 14px 14px; background: #fff; color: #0b1730;
+  border-radius: 16px; box-shadow: 0 12px 36px rgba(2,18,48,.35); border-top: 4px solid #0763e0; animation: dica-sobe .35s ease-out; }
+.dica-app img { width: 44px; height: 44px; border-radius: 10px; flex: none; }
+.dica-app-txt { flex: 1; min-width: 0; font-size: .9rem; }
+.dica-app-txt > b { display: block; font-size: 1rem; margin: 1px 0 4px; }
+.dica-app-corpo ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; line-height: 1.35; }
+.dica-app-corpo p { margin: 0; }
+.dica-app-corpo svg { width: 16px; height: 16px; vertical-align: -3px; color: #0763e0; }
+.dica-app-acoes { display: flex; gap: 8px; margin-top: 10px; }
+.dica-app-x { border: 0; background: none; padding: 2px; color: #6b7587; cursor: pointer; }
+.dica-app-x svg { width: 20px; height: 20px; }
+body.com-dica-app .toasts { bottom: 200px; }
+@keyframes dica-sobe { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.dica-app-instalar[hidden] { display: none; }
+body.com-dica-app { padding-bottom: 240px; }

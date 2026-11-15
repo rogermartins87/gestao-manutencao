@@ -5,6 +5,7 @@ import { sb, configurado, chaveInsegura } from './supabase.js';
 import { store, carregarPerfil, limparSessao, pode, ativo } from './store.js';
 import { esc, icones, toast, traduzirErro, abrirModal, carregando } from './ui.js';
 import { htmlSino, iniciarSino, pararSino } from './sino.js';
+import { mostrarDicaApp } from './instalar.js';
 
 const raiz = document.getElementById('raiz');
 const NOME_SISTEMA = 'Gestão de Manutenção';
@@ -331,6 +332,8 @@ async function iniciar() {
     // Executa fora do callback para não travar o cliente de autenticação
     setTimeout(() => (uid ? iniciarSessao() : telaLogin()), 0);
   });
+  // celular: orientação para salvar o sistema como app (some sozinha se já for app)
+  setTimeout(mostrarDicaApp, 1800);
 }
 
 iniciar();
