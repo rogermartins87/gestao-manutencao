@@ -1238,7 +1238,7 @@ label.opcao { display: flex; align-items: center; gap: 8px; padding: 4px 0; font
   background: #0763e0; transform: skewY(-14deg); opacity: .9; pointer-events: none;
 }
 .lateral .marca { border-bottom: 1px solid rgba(255,255,255,.08); }
-.lateral .marca-logo.icone-logo { background: #fff url(../img/favicon.png) center / 80% no-repeat; border-radius: 9px; }
+.lateral .marca-logo.icone-logo { background: url(../img/favicon-branco.png) center / contain no-repeat; border-radius: 0; }
 .marca-logo svg { display: none; }
 .marca-nome { letter-spacing: .02em; }
 .nav-item { position: relative; }
