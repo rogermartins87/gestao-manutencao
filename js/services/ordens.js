@@ -14,6 +14,7 @@ export const STATUS_OS = {
   em_execucao: { nome: 'Em execução', classe: 'aviso', icone: 'wrench' },
   aguardando_pecas: { nome: 'Aguardando peças', classe: 'perigo', icone: 'package-search' },
   aguardando_terceiros: { nome: 'Aguardando terceiros', classe: 'perigo', icone: 'users' },
+  atendida: { nome: 'Atendida', classe: 'atendida', icone: 'clipboard-check' },
   concluida: { nome: 'Concluída', classe: 'ativo', icone: 'circle-check' },
   cancelada: { nome: 'Cancelada', classe: 'inativo', icone: 'circle-x' },
 };
@@ -52,6 +53,12 @@ export const mudarStatus = async (id, status, nota) =>
 
 export const concluir = async (id, solucao, quando) =>
   ok(await sb.rpc('concluir_os', { p_os: id, p_solucao: solucao, p_concluida_em: quando || null }));
+
+// Quem abriu a OS (ou quem programa) finaliza ou devolve a OS atendida
+export const finalizar = async (id, obs) =>
+  ok(await sb.rpc('finalizar_os', { p_os: id, p_obs: obs || null }));
+export const devolver = async (id, motivo) =>
+  ok(await sb.rpc('devolver_os', { p_os: id, p_motivo: motivo }));
 
 export const cancelar = async (id, motivo) =>
   ok(await sb.rpc('cancelar_os', { p_os: id, p_motivo: motivo }));

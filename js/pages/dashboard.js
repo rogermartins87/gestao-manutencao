@@ -172,6 +172,7 @@ const ETAPAS_OS = [
   { k: 'programada', nome: 'Programadas', cor: '#0763e0', st: ['aprovada', 'planejada'], href: '#/ordens?situacao=aprovada' },
   { k: 'execucao', nome: 'Em execução', cor: '#1f8a3b', st: ['em_execucao'], href: '#/ordens?situacao=em_execucao' },
   { k: 'espera', nome: 'Em espera', dica: 'Aguardando peças ou terceiros', cor: '#d99a12', st: ['aguardando_pecas', 'aguardando_terceiros'], href: '#/ordens?situacao=aguardando_pecas' },
+  { k: 'atendida', nome: 'A finalizar', dica: 'Atendidas, aguardando quem abriu finalizar', cor: '#7c3aed', st: ['atendida'], href: '#/ordens?situacao=atendida' },
 ];
 function resumoOS(os) {
   const abertas = os.filter((o) => !ENCERRADAS.includes(o.status));

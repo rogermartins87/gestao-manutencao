@@ -5,7 +5,7 @@
 import { pode } from '../store.js';
 import { esc, icones, toast, traduzirErro, abrirModal, vazio, fmtDataHora } from '../ui.js';
 import * as pr from '../services/paradas.js';
-import { listarDoEquipamento as osDoEquipamento } from '../services/ordens.js';
+import { listarDoEquipamento as osDoEquipamento, ler as lerOS, STATUS_OS } from '../services/ordens.js';
 import { badgeFase } from './paradas.js';
 
 const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -20,10 +20,13 @@ export async function render(el, [id]) {
   const info = (rot, val) => `<div><span class="rotulo">${esc(rot)}</span>${val}</div>`;
   const durFase = (f) => (new Date(f.ended_at || p.ended_at || Date.now()) - new Date(f.started_at)) / 36e5;
 
+  // a máquina só volta a operar com a OS ligada finalizada (ou cancelada)
+  const osLigada = p.is_open && p.work_order_id ? await lerOS(p.work_order_id).catch(() => null) : null;
+  const osPendente = osLigada && !['concluida', 'cancelada'].includes(osLigada.status);
   const botoes = [];
   if (podeEditar && p.is_open) {
     botoes.push(['fase', 'git-branch', 'Mudar fase', '']);
-    botoes.push(['encerrar', 'circle-check', 'Encerrar parada', 'btn-sucesso']);
+    if (!osPendente) botoes.push(['encerrar', 'circle-check', 'Encerrar parada', 'btn-sucesso']);
   }
   if (podeEditar && !p.is_open) botoes.push(['nova-fase', 'plus', 'Adicionar fase', '']);
   if (podeEditar) {
@@ -33,6 +36,8 @@ export async function render(el, [id]) {
 
   el.innerHTML = `
     <a class="voltar" href="#/paradas"><i data-lucide="arrow-left"></i> Paradas</a>
+    ${osPendente ? `<div class="alerta info"><i data-lucide="lock"></i><div>Para a máquina voltar a operar, a <a href="#/ordens/${osLigada.id}"><b>${esc(osLigada.number)}</b></a> precisa ser finalizada
+      (hoje está <b>${esc(STATUS_OS[osLigada.status]?.nome || osLigada.status)}</b>${osLigada.status === 'atendida' ? `, aguardando ${esc(osLigada.requested_by_name || 'quem abriu')} finalizar` : ''}).</div></div>` : ''}
     <div class="card ficha-topo ${p.is_open ? 'st-parado' : 'st-operando'}"><div class="card-corpo">
       <div class="ficha-cab">
         <div><div class="equip-tag grande">${esc(p.equipment_tag)}</div><h1>${esc(p.equipment_name)}</h1>

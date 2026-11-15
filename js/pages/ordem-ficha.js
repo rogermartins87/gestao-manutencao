@@ -7,7 +7,7 @@ import { esc, icones, toast, traduzirErro, abrirModal, confirmar, carregando, va
 import * as os from '../services/ordens.js';
 import { badgeOS, badgePrioridade } from './ordens.js';
 import { badgeStatus } from './equipamentos.js';
-import { daOS as paradasDaOS, fmtDuracao } from '../services/paradas.js';
+import { daOS as paradasDaOS, fmtDuracao, encerrar as encerrarParada } from '../services/paradas.js';
 import * as pc from '../services/pecas.js';
 import { agendaDaOS } from '../services/preventiva.js';
 import { inspecaoDaOS, TECNICA } from '../services/preditiva.js';
@@ -36,7 +36,12 @@ export async function render(el, [id]) {
   if (['aguardando_pecas', 'aguardando_terceiros'].includes(st) && (gestor || executor)) b.push(['iniciar', 'play', 'Retomar execução', 'btn-primario']);
   if (['em_execucao', 'aguardando_terceiros'].includes(st) && (gestor || executor)) b.push(['aguardar_pecas', 'package-search', 'Aguardando peças', '']);
   if (['em_execucao', 'aguardando_pecas'].includes(st) && (gestor || executor)) b.push(['aguardar_terceiros', 'users', 'Aguardando terceiros', '']);
-  if (['em_execucao', 'aguardando_pecas', 'aguardando_terceiros'].includes(st) && (gestor || executor)) b.push(['concluir', 'circle-check', 'Concluir OS', 'btn-sucesso']);
+  if (['em_execucao', 'aguardando_pecas', 'aguardando_terceiros'].includes(st) && (gestor || executor)) b.push(['concluir', 'clipboard-check', 'Finalizar atendimento', 'btn-sucesso']);
+  const solicitante = o.requested_by === eu;
+  if (st === 'atendida' && (solicitante || gestor)) {
+    b.push(['finalizar', 'circle-check', 'Finalizar OS', 'btn-sucesso']);
+    b.push(['devolver', 'undo-2', 'Devolver para execução', '']);
+  }
   if (!encerrada && gestor) b.push(['editar', 'pencil', 'Editar', '']);
   if (!encerrada && (gestor || (st === 'aberta' && o.requested_by === eu))) b.push(['cancelar', 'circle-x', 'Cancelar OS', 'btn-texto']);
 
@@ -52,6 +57,9 @@ export async function render(el, [id]) {
 
   el.innerHTML = `
     <a class="voltar" href="#/ordens"><i data-lucide="arrow-left"></i> Ordens de serviço</a>
+    ${st === 'atendida' ? `<div class="alerta aviso-atendida"><i data-lucide="clipboard-check"></i><div><b>Atendida${o.finished_at ? ` em ${fmtDataHora(o.finished_at)}` : ''}.</b>
+      ${o.requested_by === eu ? 'Confira o serviço e toque em <b>Finalizar OS</b>, ou <b>Devolver para execução</b> se ainda falta algo.'
+        : `Aguardando ${esc(o.requested_by_name || 'quem abriu a OS')} conferir e finalizar.`}</div></div>` : ''}
     <div class="card ficha-topo os-topo os-${o.status}"><div class="card-corpo">
       <div class="ficha-cab">
         <div><div class="equip-tag grande">${esc(o.number)}</div><h1>${esc(o.title)}</h1>
@@ -125,16 +133,41 @@ async function acao(k, { o, recarregar }) {
     });
     return;
   }
+  if (k === 'finalizar') {
+    formularioModal({
+      titulo: `Finalizar ${o.number}`,
+      campos: `<p style="margin:0">Confira o que foi feito. Ao finalizar, a OS é encerrada de vez.</p>
+        ${o.solution ? `<div class="alerta small"><i data-lucide="clipboard-check"></i><div><b>Atendimento:</b> ${esc(o.solution)}</div></div>` : ''}
+        <div class="campo"><label for="m-obs">Observação <span class="muted small">(opcional)</span></label>
+          <textarea id="m-obs" name="obs" rows="2" maxlength="1000" placeholder="Ex.: conferido em operação, sem vazamento"></textarea></div>`,
+      botao: 'Finalizar OS', classe: 'btn-sucesso',
+      enviar: (f) => os.finalizar(o.id, f.obs.value.trim()),
+      sucesso: 'OS finalizada.', depois: () => perguntarRetorno(o, recarregar),
+    });
+    return;
+  }
+  if (k === 'devolver') {
+    formularioModal({
+      titulo: `Devolver ${o.number}`,
+      campos: `<div class="campo"><label for="m-dev">O que ainda precisa ser feito? *</label>
+        <textarea id="m-dev" name="dev" rows="3" required minlength="5" maxlength="1000" placeholder="Ex.: ainda faz barulho quando entra em carga"></textarea></div>
+        <div class="alerta small"><i data-lucide="info"></i><div>A OS volta para <b>Em execução</b> e ${esc(o.assigned_to_name || 'o responsável')} recebe um aviso com este motivo.</div></div>`,
+      botao: 'Devolver', classe: 'btn-primario',
+      enviar: (f) => os.devolver(o.id, f.dev.value.trim()),
+      sucesso: 'OS devolvida para execução.', depois: recarregar,
+    });
+    return;
+  }
   if (k === 'concluir') {
     formularioModal({
-      titulo: `Concluir ${o.number}`,
+      titulo: `Finalizar atendimento — ${o.number}`,
       campos: `<div class="campo"><label for="m-sol">O que foi feito? * <span class="muted small">(mínimo 10 caracteres)</span></label>
           <textarea id="m-sol" name="sol" rows="4" required minlength="10" maxlength="4000" placeholder="Ex.: substituído rolamento 6205 do mancal LA e retentor; testado em carga por 30 min"></textarea></div>
-        <div class="campo"><label for="m-fim">Concluída em *</label><input id="m-fim" name="fim" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>
-        <div class="alerta small"><i data-lucide="info"></i><div>É preciso ter pelo menos um lançamento de mão de obra. Concluir a OS não encerra a parada do equipamento: o retorno à operação é confirmado na própria parada.</div></div>`,
-      botao: 'Concluir OS', classe: 'btn-sucesso',
+        <div class="campo"><label for="m-fim">Atendimento finalizado em *</label><input id="m-fim" name="fim" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>
+        <div class="alerta small"><i data-lucide="info"></i><div>É preciso ter pelo menos um lançamento de mão de obra. A OS fica <b>Atendida</b> e ${esc(o.requested_by_name || 'quem abriu')} recebe um aviso para conferir e finalizar.</div></div>`,
+      botao: 'Finalizar atendimento', classe: 'btn-sucesso',
       enviar: (f) => os.concluir(o.id, f.sol.value.trim(), new Date(f.fim.value).toISOString()),
-      sucesso: 'OS concluída.', depois: recarregar,
+      sucesso: 'Atendimento finalizado. Aguardando quem abriu a OS finalizar.', depois: recarregar,
     });
     return;
   }
@@ -599,4 +632,23 @@ async function abaAlteracoes(corpo, { o }) {
         <td data-rotulo="O que mudou" class="small">${desc(l)}</td>
         <td data-rotulo="Motivo / nota" class="small">${esc(l.justification || '—')}</td></tr>`).join('')}
     </tbody></table></div>` : vazio({ icone: 'file-clock', titulo: 'Nenhuma alteração registrada' })}</div>`;
+}
+
+// Depois de finalizar: se a OS tem parada em aberto, pergunta se a máquina já voltou a operar
+async function perguntarRetorno(o, recarregar) {
+  let abertas = [];
+  recarregar();   // a ficha atrás já mostra a OS finalizada
+  try { abertas = (await paradasDaOS(o.id)).filter((p) => p.is_open); } catch { abertas = []; }
+  if (!abertas.length || !pode('downtime.write')) return;
+  const p = abertas[0];
+  formularioModal({
+    titulo: `${p.equipment_tag} já voltou a operar?`,
+    campos: `<p style="margin:0">A ${esc(o.number)} foi finalizada. A parada de <b>${esc(p.equipment_tag)}</b> (${esc(p.reason_name)}) ainda está em aberto.</p>
+      <div class="campo"><label for="m-ret">Retorno à operação em *</label><input id="m-ret" name="ret" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>
+      <div class="campo"><label for="m-robs">Observação <span class="muted small">(opcional)</span></label><input id="m-robs" name="robs" maxlength="500"></div>
+      <p class="muted small" style="margin:0">Se ainda não voltou, toque em <b>Voltar</b>: dá para encerrar depois pela própria parada.</p>`,
+    botao: 'Sim, voltou a operar', classe: 'btn-sucesso',
+    enviar: (f) => encerrarParada(p.id, new Date(f.ret.value).toISOString(), f.robs.value.trim()),
+    sucesso: `Parada encerrada: ${p.equipment_tag} em operação.`, depois: recarregar,
+  });
 }

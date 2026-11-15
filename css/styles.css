@@ -1529,3 +1529,9 @@ body.com-dica-app { padding-bottom: 240px; }
   .acoes-sem-os { width: 100%; }
   .acoes-sem-os .btn { flex: 1; justify-content: center; }
 }
+
+/* OS atendida (aguardando quem abriu finalizar) */
+.badge.atendida { background: #f1eafe; color: #6d28d9; }
+.ficha-topo.os-atendida { border-left-color: #7c3aed; }
+.alerta.aviso-atendida { background: #f5f0ff; border: 1px solid #d9c8fb; color: #4c1d95; }
+.alerta.aviso-atendida svg { color: #7c3aed; }
