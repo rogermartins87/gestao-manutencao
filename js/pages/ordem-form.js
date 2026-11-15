@@ -8,6 +8,7 @@ import { esc, icones, toast, traduzirErro, textoOuNulo, idDaUrl } from '../ui.js
 import * as os from '../services/ordens.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { equipamentosParaEscolher } from '../plantas.js';
+import * as pr from '../services/paradas.js';
 
 const paraLocal = (iso) => {
   if (!iso) return '';
@@ -27,17 +28,23 @@ export async function render(el, [id]) {
     el.innerHTML = `<div class="alerta aviso">A OS ${esc(o.number)} está encerrada e não pode mais ser alterada. <a href="#/ordens/${o.id}">Voltar</a></div>`; return;
   }
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
-  const v = o || { type: 'corretiva', priority: 'media', is_failure: null, equipment_id: idDaUrl(params.get('equipamento')) || '' };
+  // OS aberta a partir de uma parada sem OS (Pendências): já vem preenchida e é ligada à parada
+  const paradaId = !id ? idDaUrl(params.get('parada')) : null;
+  const parada = paradaId ? await pr.ler(paradaId).catch(() => null) : null;
+  const v = o || (parada
+    ? { type: 'corretiva', priority: 'alta', is_failure: parada.reason_category === 'falha' ? true : null, equipment_id: parada.equipment_id, title: `Parada: ${parada.reason_name}`.slice(0, 160) }
+    : { type: 'corretiva', priority: 'media', is_failure: null, equipment_id: idDaUrl(params.get('equipamento')) || '' });
   const equipTravado = id && !['aberta', 'aprovada'].includes(o.status);
   const ativos = equipamentosParaEscolher(equipamentos, v.equipment_id).filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
   const tipos = gestor ? Object.entries(os.TIPO_OS) : [['corretiva', 'Corretiva']];
-  const voltar = id ? `#/ordens/${id}` : (idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=ordens` : '#/ordens');
+  const voltar = id ? `#/ordens/${id}` : parada ? '#/pendencias' : (idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=ordens` : '#/ordens');
 
   el.innerHTML = `
     <a class="voltar" href="${voltar}"><i data-lucide="arrow-left"></i> Voltar</a>
     <div class="cabecalho-pagina"><div><h1>${id ? `Editar ${esc(o.number)}` : 'Nova ordem de serviço'}</h1>
       <p>${id ? 'O andamento (aprovar, iniciar, concluir) é feito pelos botões da OS.'
         : gestor ? 'A OS recebe número automático.' : 'Descreva o problema. A manutenção vai aprovar e programar a execução.'}</p></div></div>
+    ${parada ? `<div class="alerta info"><i data-lucide="link"></i><div>Esta OS será ligada à parada de <b>${esc(parada.equipment_tag)}</b> (${esc(parada.reason_name)}, desde ${new Date(parada.started_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}).</div></div>` : ''}
     <form id="f-os" class="card"><div class="card-corpo grade" style="gap:18px">
       <h3>O quê e onde</h3>
       <div class="grade grade-form">
@@ -100,7 +107,10 @@ export async function render(el, [id]) {
     }
     try {
       const r = id ? await os.salvar(id, dados) : await os.criar(dados);
-      toast(id ? 'OS atualizada.' : 'OS aberta.');
+      if (parada) {
+        try { await pr.salvarDados(parada.id, { work_order_id: r.id }); toast('OS aberta e ligada à parada.'); }
+        catch { toast('OS aberta, mas não foi possível ligar à parada. Ligue pela ficha da parada.', 'erro', 8000); }
+      } else toast(id ? 'OS atualizada.' : 'OS aberta.');
       location.hash = `#/ordens/${r.id}`;
     } catch (err) {
       el.querySelector('#msg-os').innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;

@@ -2,7 +2,7 @@
 // Pendências — quadro (A fazer / Em andamento / Concluídas), lista e
 // alertas do sistema (o que está atrasado nos outros módulos).
 // =====================================================================
-import { pode, store } from '../store.js';
+import { pode, store, papel } from '../store.js';
 import { esc, icones, toast, traduzirErro, vazio, montarTabela, fmtData, hojeISO, addDias, carregando, erroCarga } from '../ui.js';
 import * as pe from '../services/pendencias.js';
 import { PRIORIDADE, listar as listarOS } from '../services/ordens.js';
@@ -12,6 +12,7 @@ import { agendaAberta } from '../services/preventiva.js';
 import { pontos as pontosPred } from '../services/preditiva.js';
 import { situacao as situacaoHm } from '../services/horimetros.js';
 import { formularioModal } from './ordem-ficha.js';
+import { semOS as paradasSemOS, fmtDuracao } from '../services/paradas.js';
 
 export const podeAlterar = (p) => pode('pending.write')
   && (p.created_by === store.perfil?.id || p.assigned_to === store.perfil?.id || pode('work_order.approve'));
@@ -106,9 +107,10 @@ function cartao(p) {
 }
 
 export async function alertasSistema() {
-  const [oss, ag, pts, hms] = await Promise.all([listarOS().catch(() => []), agendaAberta().catch(() => []),
-    pontosPred().catch(() => []), situacaoHm().catch(() => [])]);
+  const [oss, ag, pts, hms, pso] = await Promise.all([listarOS().catch(() => []), agendaAberta().catch(() => []),
+    pontosPred().catch(() => []), situacaoHm().catch(() => []), paradasSemOS().catch(() => [])]);
   return [
+    { n: pso.length, t: 'Paradas sem OS', i: 'unlink', h: '#/pendencias?aba=quadro', cl: 'st-parado' },
     { n: oss.filter((o) => o.overdue).length, t: 'OS atrasadas', i: 'clipboard-list', h: '#/ordens?situacao=atrasadas', cl: 'st-parado' },
     { n: oss.filter((o) => o.status === 'aberta').length, t: 'OS aguardando aprovação', i: 'stamp', h: '#/ordens?situacao=aberta', cl: 'st-manutencao' },
     { n: ag.filter((s) => s.situacao === 'vencida').length, t: 'Preventivas vencidas', i: 'calendar-x', h: '#/preventiva', cl: 'st-parado' },
@@ -129,6 +131,7 @@ export async function render(el) {
       <p>Tarefas avulsas com responsável e prazo, e o que está atrasado no sistema.</p></div>
       <div class="acoes">${pode('pending.write') ? '<button class="btn btn-primario" id="btn-nova-pend"><i data-lucide="plus"></i> Nova pendência</button>' : ''}</div></div>
     <div id="alertas-sis"></div>
+    <div id="paradas-sem-os"></div>
     <div class="card card-filtros"><div class="card-corpo filtros-equip filtros-pecas">
       <div class="campo busca-campo"><label for="pe-busca">Buscar</label><input id="pe-busca" type="search" placeholder="Título, TAG, OS…"></div>
       <div class="campo"><label for="pe-resp">Responsável</label><select id="pe-resp"><option value="">Todos</option><option value="-">Sem responsável</option></select></div>
@@ -139,6 +142,30 @@ export async function render(el) {
   el.querySelector('#pe-minhas').checked = f.minhas;
   const corpo = el.querySelector('#aba-pend');
   let lista = [];
+
+  let semOS = [];
+  const podeOS = pode('work_order.manage') || pode('work_order.request');
+  const desenharSemOS = () => {
+    const box = el.querySelector('#paradas-sem-os');
+    // "Só as minhas": aparece para os planejadores, que são os responsáveis
+    if (!semOS.length || (f.minhas && papel() !== 'planejador')) { box.innerHTML = ''; return; }
+    const ord = [...semOS].sort((a, b) => (b.is_open - a.is_open) || String(b.started_at).localeCompare(String(a.started_at)));
+    box.innerHTML = `<div class="card secao card-sem-os">
+      <div class="card-titulo"><h3><i data-lucide="unlink"></i> Paradas sem OS ligada <span class="contador">${semOS.length}</span></h3>
+        <span class="resp-grupo"><i data-lucide="users"></i> Responsável: <b>Planejadores</b></span></div>
+      <div class="card-corpo lista-sem-os">${ord.map((d) => `
+        <div class="item-sem-os">
+          <div class="info-sem-os"><b>${esc(d.equipment_tag)}</b> — ${esc(d.equipment_name)}
+            <div class="small muted">${esc(d.reason_name)} · desde ${new Date(d.started_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(fmtDuracao(d.duration_hours))}
+              ${d.created_by_name ? ` · por ${esc(d.created_by_name)}` : ''}</div></div>
+          <span class="selo-var ${d.is_open ? 'ruim' : 'neutro'}">${d.is_open ? 'Em aberto' : 'Encerrada'}</span>
+          <div class="acoes-sem-os">
+            ${podeOS ? `<a class="btn btn-sm btn-primario" href="#/ordens/nova?parada=${d.id}"><i data-lucide="clipboard-plus"></i> Criar OS</a>` : ''}
+            <a class="btn btn-sm" href="#/paradas/${d.id}">Ver parada</a></div>
+        </div>`).join('')}</div></div>`;
+    icones();
+  };
+  paradasSemOS().then((l) => { semOS = l || []; desenharSemOS(); }).catch(() => {});
 
   alertasSistema().then((al) => {
     el.querySelector('#alertas-sis').innerHTML = al.length ? `<h2 class="secao-titulo"><i data-lucide="bell-ring"></i> Atenção no sistema</h2>
@@ -204,7 +231,7 @@ export async function render(el) {
   el.querySelector('.abas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; desenhar(); } });
   el.querySelector('#pe-busca').oninput = (ev) => { f.busca = ev.target.value; desenhar(); };
   el.querySelector('#pe-resp').onchange = (ev) => { f.resp = ev.target.value; desenhar(); };
-  el.querySelector('#pe-minhas').onchange = (ev) => { f.minhas = ev.target.checked; desenhar(); };
+  el.querySelector('#pe-minhas').onchange = (ev) => { f.minhas = ev.target.checked; desenhar(); desenharSemOS(); };
   corpo.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-st]');
     if (b) { ev.stopPropagation(); mudarStatus(lista.find((p) => p.id === b.dataset.p), b.dataset.st, carregar); return; }

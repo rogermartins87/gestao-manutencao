@@ -1512,3 +1512,20 @@ body.com-dica-app { padding-bottom: 240px; }
 .dica-bloqueio summary { cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; }
 .dica-bloqueio summary svg { width:16px; height:16px; }
 .dica-bloqueio p { margin:8px 0 0; }
+
+/* Pendências: paradas sem OS ligada (responsável: planejadores) */
+.card-sem-os { border-left: 4px solid #d63b3b; }
+.card-sem-os .card-titulo { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.resp-grupo { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--texto-2, #4b5563); background: #eef3fd; padding: 4px 10px; border-radius: 99px; }
+.resp-grupo svg { width: 15px; height: 15px; }
+.lista-sem-os { display: grid; gap: 0; padding-top: 4px; padding-bottom: 4px; }
+.item-sem-os { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--borda); }
+.item-sem-os:last-child { border-bottom: 0; }
+.info-sem-os { flex: 1; min-width: 0; }
+.acoes-sem-os { display: flex; gap: 6px; }
+@media (max-width: 640px) {
+  .item-sem-os { flex-wrap: wrap; }
+  .info-sem-os { flex-basis: calc(100% - 100px); }
+  .acoes-sem-os { width: 100%; }
+  .acoes-sem-os .btn { flex: 1; justify-content: center; }
+}

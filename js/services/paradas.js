@@ -25,6 +25,9 @@ export const listar = async ({ desde } = {}) => {
 };
 export const abertas = async () =>
   daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('ended_at', null).order('started_at')));
+// Paradas que ainda não têm OS ligada (responsabilidade dos planejadores)
+export const semOS = async () =>
+  daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('work_order_id', null).order('started_at', { ascending: false })));
 export const doEquipamento = async (id) =>
   ok(await sb.from('vw_downtime_events').select('*').eq('equipment_id', id).order('started_at', { ascending: false }));
 export const daOS = async (id) =>
