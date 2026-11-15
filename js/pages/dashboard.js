@@ -118,7 +118,6 @@ function htmlIndicadores(linhas, meses, oee, oeeMeses) {
     const d = ((atual - Number(anterior)) / Number(anterior)) * 100;
     return selo(d, `${d > 0 ? '+' : '−'}${fmtNum(Math.abs(d), 0)}%`, maiorMelhor);
   };
-  const qtd = (atual, anterior) => (anterior == null ? '' : selo(atual - Number(anterior), `${atual - Number(anterior) > 0 ? '+' : '−'}${fmtNum(Math.abs(atual - Number(anterior)))}`, false));
   const cartao = ({ rot, icone, cor, v, var: vr = '', nota = '', dica = '', href = '#/relatorios' }) => `<a class="card kpi2 c-${cor}" href="${href}" title="${esc(dica)}">
     <span class="kpi2-ic"><i data-lucide="${icone}"></i></span>
     <span class="kpi2-txt"><span class="kpi2-rot">${esc(rot)}</span><span class="kpi2-linha"><span class="kpi2-v">${v}</span>${vr}</span>${nota ? `<span class="kpi2-nota">${esc(nota)}</span>` : ''}</span></a>`;
@@ -138,8 +137,6 @@ function htmlIndicadores(linhas, meses, oee, oeeMeses) {
     dica: 'Tempo médio entre falhas (quanto maior, melhor)' }));
   cards.push(cartao({ rot: 'MTTR', icone: 'timer', cor: 'azul', v: h(t.mttr), var: pct(t.mttr, ant?.mttr, false),
     nota: t.mttr == null ? 'sem reparos no mês' : '', dica: 'Tempo médio para reparar (quanto menor, melhor)' }));
-  cards.push(cartao({ rot: 'Falhas', icone: 'circle-alert', cor: 'vermelho', v: fmtNum(t.falhas), var: ant ? qtd(t.falhas, ant.failures || 0) : '',
-    dica: 'OS corretivas com falha no mês', href: '#/ordens?situacao=todas' }));
   if (t.custos && pode('costs.read')) cards.push(cartao({ rot: 'Custo do mês', icone: 'coins', cor: 'ambar', v: fmtMoeda(t.custos.total), dica: 'Mão de obra, peças e serviços' }));
   return `<div class="grade-kpi2 k${cards.length}" style="--k:${cards.length}">${cards.join('')}</div>`;
 }
