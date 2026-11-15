@@ -2,6 +2,7 @@
 // Serviço: pendências (tarefas avulsas) e avisos (o "sininho").
 // Os avisos são criados só pelo banco; aqui se lê, marca como lido e apaga.
 // =====================================================================
+import { daPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -17,7 +18,7 @@ export const ABERTAS = ['aberta', 'em_andamento'];
 const CAMPOS = ['title', 'description', 'equipment_id', 'work_order_id', 'assigned_to', 'due_date', 'priority', 'status', 'done_note', 'cancel_reason'];
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
-export const listar = async () => ok(await sb.from('vw_pending_tasks').select('*').order('due_date', { ascending: true }).limit(2000));
+export const listar = async () => daPlanta(ok(await sb.from('vw_pending_tasks').select('*').order('due_date', { ascending: true }).limit(2000)));
 export const doEquipamento = async (eqId) => ok(await sb.from('vw_pending_tasks').select('*').eq('equipment_id', eqId).order('created_at', { ascending: false }));
 export const daOS = async (osId) => ok(await sb.from('vw_pending_tasks').select('*').eq('work_order_id', osId).order('created_at', { ascending: false }));
 export const ler = async (id) => ok(await sb.from('vw_pending_tasks').select('*').eq('id', id).maybeSingle());

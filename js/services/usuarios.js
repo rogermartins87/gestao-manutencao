@@ -56,3 +56,14 @@ export async function listarAuditoria({ de, ate, tabela, usuario, acao, pagina =
   if (acao) q = q.eq('action', acao);
   return ok(await q.range(pagina * porPagina, pagina * porPagina + porPagina));   // pede 1 a mais para saber se há próxima página
 }
+
+// ---------- Plantas ----------
+export const listarPlantas = async () => ok(await sb.from('plants').select('*').order('sort_order').order('name'));
+export const contarEquipamentosPorPlanta = async () => {
+  const ls = ok(await sb.from('equipment').select('plant_id, status'));
+  const m = {};
+  ls.forEach((e) => { const x = (m[e.plant_id] ||= { ativos: 0, desativados: 0 }); if (e.status === 'desativado') x.desativados++; else x.ativos++; });
+  return m;
+};
+export const criarPlanta = async (d) => ok(await sb.from('plants').insert(d).select('id').single());
+export const salvarPlanta = async (id, d) => ok(await sb.from('plants').update(d).eq('id', id).select('id').single());

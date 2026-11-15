@@ -1,16 +1,18 @@
 // =====================================================================
 // Usuários e configurações (Etapa 2)
-// Abas: Usuários · Perfis e permissões · Configurações · Histórico de alterações
+// Abas: Usuários · Perfis e permissões · Plantas · Configurações · Custo da mão de obra · Histórico de alterações
 // Cada aba só aparece para quem tem a permissão; o banco confere de novo.
 // =====================================================================
 import { store, pode, carregarPerfil } from '../store.js';
 import { esc, icones, toast, traduzirErro, abrirModal, carregando, fmtDataHora, hojeISO, addDias, vazio, erroCarga, montarTabela, textoOuNulo } from '../ui.js';
 import * as svc from '../services/usuarios.js';
 import * as osSvc from '../services/ordens.js';
+import { atualizarPlantas } from '../app.js';
 
 const ABAS = [
   { id: 'usuarios', titulo: 'Usuários', icone: 'users', perm: 'users.manage', desenhar: abaUsuarios },
   { id: 'permissoes', titulo: 'Perfis e permissões', icone: 'shield-check', perm: ['users.manage', 'settings.manage'], desenhar: abaPermissoes },
+  { id: 'plantas', titulo: 'Plantas', icone: 'building-2', perm: 'settings.manage', desenhar: abaPlantas },
   { id: 'configuracoes', titulo: 'Configurações', icone: 'settings', perm: 'settings.manage', desenhar: abaConfiguracoes },
   { id: 'custos', titulo: 'Custo da mão de obra', icone: 'badge-dollar-sign', perm: 'costs.read', desenhar: abaCustos },
   { id: 'historico', titulo: 'Histórico de alterações', icone: 'history', perm: 'audit.read', desenhar: abaHistorico },
@@ -204,6 +206,98 @@ async function abaPermissoes(corpo) {
 }
 
 // ---------------------------------------------------------------------
+// Aba Plantas — cadastro das plantas da empresa (Matriz e outras).
+// Planta não se apaga: quando sai de uso, é desativada (sem equipamentos ativos).
+// ---------------------------------------------------------------------
+async function abaPlantas(corpo) {
+  let plantas;
+  let contagem;
+  try {
+    [plantas, contagem] = await Promise.all([svc.listarPlantas(), svc.contarEquipamentosPorPlanta()]);
+  } catch (e) {
+    if (/plants|relation|schema cache/i.test(`${e.message}`)) {
+      corpo.innerHTML = '<div class="alerta aviso"><i data-lucide="database"></i><div>O cadastro de plantas ainda não foi ativado no banco de dados (SQL 019).</div></div>';
+      return;
+    }
+    throw e;
+  }
+  const qtd = (p) => contagem[p.id] || { ativos: 0, desativados: 0 };
+  corpo.innerHTML = `
+    <div class="alerta info" style="margin-bottom:16px"><i data-lucide="info"></i><div>
+      Cada equipamento pertence a uma planta. Com duas ou mais plantas ativas, aparece no topo da tela a escolha
+      <b>Todas as plantas</b> ou uma planta só — e o dashboard, as listas e os relatórios mostram só aquela planta.
+      Todos os usuários veem todas as plantas. Turnos e horário de funcionamento são os mesmos para todas.</div></div>
+    <div class="cabecalho-pagina" style="margin-bottom:12px"><div><h2 style="margin:0;font-size:1.05rem">${plantas.length} ${plantas.length === 1 ? 'planta cadastrada' : 'plantas cadastradas'}</h2></div>
+      <button class="btn btn-primario" id="btn-nova-planta"><i data-lucide="plus"></i> Nova planta</button></div>
+    <div class="card"><div id="tabela-plantas"></div></div>`;
+  montarTabela(corpo.querySelector('#tabela-plantas'), {
+    linhas: plantas,
+    colunas: [
+      { titulo: 'Planta', chave: 'name', primaria: true, render: (p) => `<b>${esc(p.name)}</b>${p.city ? `<div class="muted small">${esc(p.city)}</div>` : ''}` },
+      { titulo: 'Código', chave: 'code', render: (p) => (p.code ? `<code>${esc(p.code)}</code>` : '<span class="muted small">—</span>') },
+      { titulo: 'Equipamentos', valor: (p) => qtd(p).ativos, render: (p) => `<b>${qtd(p).ativos}</b>${qtd(p).desativados ? ` <span class="muted small">+ ${qtd(p).desativados} desativado${qtd(p).desativados === 1 ? '' : 's'}</span>` : ''}` },
+      { titulo: 'Ordem', chave: 'sort_order' },
+      { titulo: 'Situação', valor: (p) => (p.active ? 'Ativa' : 'Desativada'), render: (p) => (p.active ? '<span class="badge ativo">Ativa</span>' : '<span class="badge inativo">Desativada</span>') },
+      { titulo: 'Ações', classe: 'col-acoes', render: (p) => `<button class="btn btn-sm" data-planta="${p.id}"><i data-lucide="pencil"></i> Editar</button>` },
+    ],
+  });
+  const recarregar = async () => { await atualizarPlantas(); await abaPlantas(corpo); icones(); };
+  corpo.querySelector('#btn-nova-planta').onclick = () => editarPlanta(null, plantas, recarregar);
+  corpo.querySelectorAll('[data-planta]').forEach((b) => { b.onclick = () => editarPlanta(plantas.find((p) => p.id === b.dataset.planta), plantas, recarregar, qtd); });
+}
+
+function editarPlanta(p, plantas, depois, qtd = () => ({ ativos: 0 })) {
+  const v = p || { active: true, sort_order: Math.max(0, ...plantas.map((x) => x.sort_order || 0)) + 1 };
+  const comEquip = p ? qtd(p).ativos : 0;
+  const { el, fechar } = abrirModal({
+    titulo: p ? `Editar planta — ${p.name}` : 'Nova planta',
+    html: `
+      <form id="f-planta" class="grade" style="gap:14px">
+        <div class="campo"><label for="pl-nome">Nome da planta *</label>
+          <input id="pl-nome" name="nome" required minlength="2" maxlength="80" value="${esc(v.name || '')}" placeholder="Ex.: Planta Sul"></div>
+        <div class="grade grade-2" style="gap:14px">
+          <div class="campo"><label for="pl-cod">Código (sigla)</label>
+            <input id="pl-cod" name="cod" maxlength="12" pattern="[A-Za-z0-9._\-]{1,12}" value="${esc(v.code || '')}" placeholder="Ex.: SUL" style="text-transform:uppercase">
+            <span class="ajuda">Até 12 letras ou números, sem espaço.</span></div>
+          <div class="campo"><label for="pl-ordem">Ordem na lista</label>
+            <input id="pl-ordem" name="ordem" type="number" min="0" max="999" step="1" value="${esc(v.sort_order ?? 0)}">
+            <span class="ajuda">A primeira planta ativa recebe os equipamentos sem planta informada.</span></div>
+        </div>
+        <div class="campo"><label for="pl-cidade">Cidade / endereço</label>
+          <input id="pl-cidade" name="cidade" maxlength="80" value="${esc(v.city || '')}" placeholder="Ex.: Divinópolis - MG"></div>
+        ${p ? `<label class="check-linha"><input type="checkbox" name="ativa" ${v.active ? 'checked' : ''} ${v.active && comEquip ? 'disabled' : ''}> Planta ativa</label>
+          ${v.active && comEquip ? `<div class="muted small">Para desativar, mude ${comEquip === 1 ? 'o equipamento' : `os ${comEquip} equipamentos`} desta planta para outra (ou desative${comEquip === 1 ? '-o' : '-os'}) antes.</div>` : ''}` : ''}
+        <div id="msg-planta"></div>
+      </form>`,
+    rodape: `<button class="btn" data-fechar>Cancelar</button>
+             <button class="btn btn-primario" form="f-planta" type="submit"><i data-lucide="save"></i> ${p ? 'Salvar' : 'Cadastrar planta'}</button>`,
+  });
+  const f = el.querySelector('#f-planta');
+  f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = el.querySelector('[type=submit]'); btn.disabled = true;
+    const dados = {
+      name: f.nome.value.trim(),
+      code: textoOuNulo(f.cod.value)?.toUpperCase() ?? null,
+      city: textoOuNulo(f.cidade.value),
+      sort_order: Number(f.ordem.value || 0),
+    };
+    if (p && f.ativa && !f.ativa.disabled) dados.active = f.ativa.checked;
+    try {
+      if (p) await svc.salvarPlanta(p.id, dados); else await svc.criarPlanta(dados);
+      fechar();
+      toast(p ? 'Planta atualizada.' : `Planta ${dados.name} cadastrada.`);
+      await depois();
+    } catch (err) {
+      const msg = /plants_nome_idx/.test(`${err.message}`) ? `Já existe uma planta chamada ${dados.name}.`
+        : /plants_codigo_idx/.test(`${err.message}`) ? `Já existe uma planta com o código ${dados.code}.` : traduzirErro(err);
+      el.querySelector('#msg-planta').innerHTML = `<div class="alerta perigo">${esc(msg)}</div>`;
+      btn.disabled = false;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------
 // Aba Configurações
 // ---------------------------------------------------------------------
 const PARAMETROS = [
@@ -219,8 +313,6 @@ async function abaConfiguracoes(corpo) {
       <form id="f-config" class="grade" style="gap:14px">
         <div class="campo"><label for="cfg-empresa">Nome da empresa</label>
           <input id="cfg-empresa" name="company_name" required maxlength="120" value="${esc(cfg?.company_name || '')}"></div>
-        <div class="campo"><label for="cfg-planta">Unidade / planta</label>
-          <input id="cfg-planta" name="plant_name" maxlength="120" value="${esc(cfg?.plant_name || '')}" placeholder="Ex.: Usina de Divinópolis"></div>
         ${PARAMETROS.map((p) => `<div class="campo"><label for="par-${p.chave}">${esc(p.titulo)}</label>
           <input id="par-${p.chave}" name="par:${p.chave}" type="number" min="${p.min}" max="${p.max}" step="1" required value="${esc(par[p.chave] ?? p.padrao)}">
           <span class="ajuda">${esc(p.ajuda)}</span></div>`).join('')}
@@ -238,7 +330,7 @@ async function abaConfiguracoes(corpo) {
       PARAMETROS.forEach((p) => { parameters[p.chave] = Number(f[`par:${p.chave}`].value); });
       store.empresa = await svc.salvarConfiguracoes({
         company_name: f.company_name.value.trim(),
-        plant_name: textoOuNulo(f.plant_name.value),
+        plant_name: cfg?.plant_name ?? null,
         parameters,
       });
       document.querySelector('.marca-prop')?.replaceChildren(document.createTextNode(store.empresa.company_name));
@@ -306,6 +398,7 @@ const NOME_ACAO = {
 const NOME_CAMPO = {
   full_name: 'Nome', email: 'E-mail', role_id: 'Perfil', status: 'Situação', hour_meter_authorized: 'Registra horímetro',
   job_title: 'Cargo', approved_by: 'Liberado por', approved_at: 'Liberado em', company_name: 'Empresa', plant_name: 'Unidade',
+  name: 'Nome', code: 'Código', city: 'Cidade', sort_order: 'Ordem', active: 'Ativa', plant_id: 'Planta',
   parameters: 'Parâmetros', role_id_permission: 'Permissão',
 };
 const CAMPOS_OCULTOS = new Set(['approved_at', 'created_at', 'created_by', 'updated_at', 'updated_by', 'id', 'last_access_at']);

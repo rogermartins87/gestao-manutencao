@@ -6,12 +6,13 @@
 import { esc, icones, toast, traduzirErro, numOuNulo, idDaUrl } from '../ui.js';
 import * as pd from '../services/preditiva.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { agoraLocal, localParaISO } from '../services/horimetros.js';
 import { badgeResultado } from './preditiva.js';
 
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
-  const equipamentos = (await listarEquipamentos()).filter((e) => e.status !== 'desativado');
+  const equipamentos = equipamentosParaEscolher(await listarEquipamentos(), idDaUrl(params.get('equipamento'))).filter((e) => e.status !== 'desativado');
   const voltar = idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=preditiva` : '#/preditiva';
   let pontos = [];
   let avulsas = 0;

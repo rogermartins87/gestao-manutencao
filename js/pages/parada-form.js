@@ -4,6 +4,7 @@
 import { esc, icones, toast, traduzirErro, textoOuNulo, idDaUrl } from '../ui.js';
 import * as pr from '../services/paradas.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { listarDoEquipamento as osDoEquipamento, ler as lerOS } from '../services/ordens.js';
 
 const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -14,7 +15,7 @@ export async function render(el) {
   const osParam = idDaUrl(params.get('os'));
   const [equipamentos, motivos, osOrigem] = await Promise.all([listarEquipamentos(), pr.motivos(), osParam ? lerOS(osParam) : null]);
   const eqInicial = osOrigem?.equipment_id || idDaUrl(params.get('equipamento')) || '';
-  const ativos = equipamentos.filter((e) => e.status !== 'desativado');
+  const ativos = equipamentosParaEscolher(equipamentos, eqInicial).filter((e) => e.status !== 'desativado');
   const voltar = osOrigem ? `#/ordens/${osOrigem.id}` : eqInicial ? `#/equipamentos/${eqInicial}?aba=paradas` : '#/paradas';
 
   el.innerHTML = `

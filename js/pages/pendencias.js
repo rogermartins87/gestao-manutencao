@@ -7,6 +7,7 @@ import { esc, icones, toast, traduzirErro, vazio, montarTabela, fmtData, hojeISO
 import * as pe from '../services/pendencias.js';
 import { PRIORIDADE, listar as listarOS } from '../services/ordens.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { agendaAberta } from '../services/preventiva.js';
 import { pontos as pontosPred } from '../services/preditiva.js';
 import { situacao as situacaoHm } from '../services/horimetros.js';
@@ -47,7 +48,7 @@ export async function abrirPendencia({ pend = null, equipamentoId = null, osId =
       </div>
       <div class="grade grade-form">
         <div class="campo"><label for="pp-eq">Equipamento</label><select id="pp-eq" name="eq"><option value="">Nenhum</option>
-          ${eqs.map((e) => `<option value="${e.id}" ${e.id === v.equipment_id ? 'selected' : ''}>${esc(e.tag)} — ${esc(e.name)}</option>`).join('')}</select></div>
+          ${equipamentosParaEscolher(eqs, v.equipment_id).map((e) => `<option value="${e.id}" ${e.id === v.equipment_id ? 'selected' : ''}>${esc(e.tag)} — ${esc(e.name)}</option>`).join('')}</select></div>
         <div class="campo"><label for="pp-os">Ordem de serviço</label><select id="pp-os" name="os"><option value="">Nenhuma</option>${opOS(v.equipment_id)}</select></div>
       </div>
       <div class="campo"><label for="pp-desc">Detalhes</label><textarea id="pp-desc" name="desc" rows="3" maxlength="4000" placeholder="Opcional">${esc(v.description || '')}</textarea></div>

@@ -3,6 +3,7 @@
 // O cálculo do OEE é todo do banco (oee_equipamentos / oee_mensal);
 // aqui só se junta a planta (ponderado pelas horas programadas).
 // =====================================================================
+import { daPlanta, argPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -22,7 +23,7 @@ export const salvarTurno = async (id, d) => ok(await sb.from('production_shifts'
 
 // ---------- Equipamentos que medem OEE ----------
 export const equipamentosOEE = async () =>
-  ok(await sb.from('equipment').select('id, tag, name, sector, status, production_unit, ideal_rate').eq('oee_enabled', true).neq('status', 'desativado').order('tag'));
+  daPlanta(ok(await sb.from('equipment').select('id, tag, name, sector, status, production_unit, ideal_rate').eq('oee_enabled', true).neq('status', 'desativado').order('tag')), 'id');
 export const dadosOEE = async (id) =>
   ok(await sb.from('equipment').select('oee_enabled, production_unit, ideal_rate').eq('id', id).maybeSingle());
 
@@ -31,7 +32,8 @@ export const lancamentos = async ({ desde, ate, equipamento = null, todos = fals
   let q = sb.from('production_records').select('*').gte('shift_date', desde).lte('shift_date', ate);
   if (equipamento) q = q.eq('equipment_id', equipamento);
   if (!todos) q = q.eq('status', 'valida');
-  return ok(await q.order('shift_date', { ascending: false }).order('created_at', { ascending: false }).limit(5000));
+  const ls = ok(await q.order('shift_date', { ascending: false }).order('created_at', { ascending: false }).limit(5000));
+  return equipamento ? ls : daPlanta(ls);
 };
 export const lancar = async (d) => ok(await sb.from('production_records').insert(d).select('id').single());
 export const corrigir = async (id, produzido, refugo, justificativa) =>
@@ -40,9 +42,9 @@ export const anular = async (id, justificativa) => ok(await sb.rpc('anular_produ
 
 // ---------- OEE ----------
 export const porEquipamento = async (inicio, fim, equipamento = null) =>
-  ok(await sb.rpc('oee_equipamentos', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento })) || [];
+  ok(await sb.rpc('oee_equipamentos', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento, ...argPlanta(equipamento) })) || [];
 export const mensal = async (meses = 12, equipamento = null) =>
-  ok(await sb.rpc('oee_mensal', { p_meses: meses, p_equipamento: equipamento })) || [];
+  ok(await sb.rpc('oee_mensal', { p_meses: meses, p_equipamento: equipamento, ...argPlanta(equipamento) })) || [];
 
 // OEE da planta: média dos equipamentos com OEE, pesando pelas horas programadas de cada um
 export function planta(linhas) {

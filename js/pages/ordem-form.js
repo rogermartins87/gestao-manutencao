@@ -7,6 +7,7 @@ import { pode } from '../store.js';
 import { esc, icones, toast, traduzirErro, textoOuNulo, idDaUrl } from '../ui.js';
 import * as os from '../services/ordens.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 
 const paraLocal = (iso) => {
   if (!iso) return '';
@@ -28,7 +29,7 @@ export async function render(el, [id]) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   const v = o || { type: 'corretiva', priority: 'media', is_failure: null, equipment_id: idDaUrl(params.get('equipamento')) || '' };
   const equipTravado = id && !['aberta', 'aprovada'].includes(o.status);
-  const ativos = equipamentos.filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
+  const ativos = equipamentosParaEscolher(equipamentos, v.equipment_id).filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
   const tipos = gestor ? Object.entries(os.TIPO_OS) : [['corretiva', 'Corretiva']];
   const voltar = id ? `#/ordens/${id}` : (idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=ordens` : '#/ordens');
 

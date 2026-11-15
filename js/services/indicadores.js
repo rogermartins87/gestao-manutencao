@@ -4,6 +4,7 @@
 // O cálculo é todo do banco (indicadores_equipamentos / indicadores_mensais);
 // aqui só se soma a usina e se explica de onde veio cada número.
 // =====================================================================
+import { daPlanta, argPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -25,9 +26,9 @@ export const SELO = {
 
 // ---------- Indicadores ----------
 export const porEquipamento = async (inicio, fim, equipamento = null) =>
-  ok(await sb.rpc('indicadores_equipamentos', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento })) || [];
+  ok(await sb.rpc('indicadores_equipamentos', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento, ...argPlanta(equipamento) })) || [];
 export const mensais = async (meses = 12, equipamento = null) =>
-  ok(await sb.rpc('indicadores_mensais', { p_meses: meses, p_equipamento: equipamento })) || [];
+  ok(await sb.rpc('indicadores_mensais', { p_meses: meses, p_equipamento: equipamento, ...argPlanta(equipamento) })) || [];
 
 const n = (v) => (v == null ? 0 : Number(v));
 const soma = (l, k) => l.reduce((s, x) => s + n(x[k]), 0);
@@ -91,15 +92,15 @@ export function horasFaixa(ini, fim) {
 
 // ---------- Listas para os relatórios ----------
 export const pecasTrocadas = async (desde, ate) =>
-  ok(await sb.from('vw_work_order_parts').select('*').is('removed_at', null).gte('replaced_at', desde).lt('replaced_at', ate)
-    .order('replaced_at', { ascending: false }).limit(5000));
+  daPlanta(ok(await sb.from('vw_work_order_parts').select('*').is('removed_at', null).gte('replaced_at', desde).lt('replaced_at', ate)
+    .order('replaced_at', { ascending: false }).limit(5000)));
 export const ordensDoPeriodo = async (desde, ate) =>
-  ok(await sb.from('vw_work_orders').select('*').gte('created_at', desde).lt('created_at', ate).order('created_at', { ascending: false }).limit(5000));
+  daPlanta(ok(await sb.from('vw_work_orders').select('*').gte('created_at', desde).lt('created_at', ate).order('created_at', { ascending: false }).limit(5000)));
 export const paradasDoPeriodo = async (desde, ate) =>
-  ok(await sb.from('vw_downtime_events').select('*').lt('started_at', ate).or(`ended_at.is.null,ended_at.gte.${desde}`)
-    .order('started_at', { ascending: false }).limit(5000));
+  daPlanta(ok(await sb.from('vw_downtime_events').select('*').lt('started_at', ate).or(`ended_at.is.null,ended_at.gte.${desde}`)
+    .order('started_at', { ascending: false }).limit(5000)));
 export const inspecoesDoPeriodo = async (desde, ate) =>
-  ok(await sb.from('vw_inspections').select('*').gte('performed_at', desde).lt('performed_at', ate).order('performed_at', { ascending: false }).limit(5000));
+  daPlanta(ok(await sb.from('vw_inspections').select('*').gte('performed_at', desde).lt('performed_at', ate).order('performed_at', { ascending: false }).limit(5000)));
 export const preventivasDoPeriodo = async (desde, ate) =>
-  ok(await sb.from('vw_maintenance_schedule').select('*').eq('status', 'executada').gte('executed_at', desde).lt('executed_at', ate)
-    .order('executed_at', { ascending: false }).limit(5000));
+  daPlanta(ok(await sb.from('vw_maintenance_schedule').select('*').eq('status', 'executada').gte('executed_at', desde).lt('executed_at', ate)
+    .order('executed_at', { ascending: false }).limit(5000)));

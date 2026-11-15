@@ -3,6 +3,7 @@
 // A agenda é escrita só pelo banco (criação do plano, conclusão da OS,
 // pular, reprogramar); a tela apenas pede.
 // =====================================================================
+import { daPlanta, argPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -26,7 +27,7 @@ const CAMPOS = ['equipment_id', 'name', 'description', 'trigger', 'interval_days
   'priority', 'default_assignee', 'first_due_date', 'first_due_hour_meter', 'active', 'deactivated_reason'];
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
-export const planos = async () => ok(await sb.from('vw_maintenance_plans').select('*').order('equipment_tag'));
+export const planos = async () => daPlanta(ok(await sb.from('vw_maintenance_plans').select('*').order('equipment_tag')));
 export const planosDoEquipamento = async (eqId) => ok(await sb.from('vw_maintenance_plans').select('*').eq('equipment_id', eqId).order('name'));
 export const lerPlano = async (id) => ok(await sb.from('vw_maintenance_plans').select('*').eq('id', id).maybeSingle());
 export const criarPlano = async (d) => ok(await sb.from('maintenance_plans').insert(so(d)).select('id').single());
@@ -42,13 +43,13 @@ export const salvarTarefa = async (id, d) => ok(await sb.from('maintenance_plan_
 
 // ---------- Agenda ----------
 export const agendaAberta = async () =>
-  ok(await sb.from('vw_maintenance_schedule').select('*').in('status', ['prevista', 'os_gerada']).order('next_date', { ascending: true }));
+  daPlanta(ok(await sb.from('vw_maintenance_schedule').select('*').in('status', ['prevista', 'os_gerada']).order('next_date', { ascending: true })));
 export const agendaDoPlano = async (planoId) =>
   ok(await sb.from('vw_maintenance_schedule').select('*').eq('plan_id', planoId).order('sequence', { ascending: false }));
 export const agendaDaOS = async (osId) =>
   ok(await sb.from('vw_maintenance_schedule').select('*').eq('work_order_id', osId).maybeSingle());
 export const executadas = async (desde) =>
-  ok(await sb.from('vw_maintenance_schedule').select('*').eq('status', 'executada').gte('executed_at', desde).order('executed_at', { ascending: false }));
+  daPlanta(ok(await sb.from('vw_maintenance_schedule').select('*').eq('status', 'executada').gte('executed_at', desde).order('executed_at', { ascending: false })));
 
 export const gerarOS = async (agendaId, responsavel = null, prazo = null) =>
   ok(await sb.rpc('gerar_os_preventiva', { p_agenda: agendaId, p_responsavel: responsavel, p_prazo: prazo }));
@@ -58,7 +59,7 @@ export const reprogramar = async (agendaId, data, horimetro, motivo) =>
   ok(await sb.rpc('reprogramar_preventiva', { p_agenda: agendaId, p_data: data, p_horimetro: horimetro, p_motivo: motivo }));
 
 export const cumprimento = async (inicio, fim, equipamento = null) =>
-  ok(await sb.rpc('cumprimento_preventivo', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento }))?.[0] || null;
+  ok(await sb.rpc('cumprimento_preventivo', { p_inicio: inicio, p_fim: fim, p_equipamento: equipamento, ...argPlanta(equipamento) }))?.[0] || null;
 
 export const alteracoes = async (planoId, agendaIds = []) =>
   ok(await sb.from('audit_logs').select('*').in('table_name', ['maintenance_plans', 'maintenance_plan_tasks', 'maintenance_schedule'])

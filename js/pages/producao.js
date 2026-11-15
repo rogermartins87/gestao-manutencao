@@ -10,6 +10,7 @@ import { esc, icones, toast, traduzirErro, abrirModal, vazio, carregando, erroCa
   hojeISO, addDias, numOuNulo, montarTabela, baixarCSV, MESES } from '../ui.js';
 import * as pr from '../services/producao.js';
 import { linha as graficoLinha, semDados, COR } from '../graficos.js';
+import { escopoOEE } from '../plantas.js';
 
 const ABAS = { oee: 'OEE', lancar: 'Lançar turno', lancamentos: 'Lançamentos', turnos: 'Turnos' };
 const PERIODOS = { mes: 'Este mês', mes_ant: 'Mês passado', d7: 'Últimos 7 dias', d30: 'Últimos 30 dias', d90: 'Últimos 90 dias' };
@@ -81,15 +82,15 @@ async function abaOEE(corpo) {
     const ordenadas = [...linhas].sort((a, b) => (b.oee ?? -1) - (a.oee ?? -1) || a.tag.localeCompare(b.tag));
     res.innerHTML = `
       <div class="grade-ind">
-        ${tile('OEE da planta', 'factory', t.oee, t.oee == null ? (t.semCalendario ? 'cadastre o horário de funcionamento' : 'sem turnos lançados no período') : `${t.comOEE} de ${t.maquinas} máquinas · ponderado pelas horas programadas`, 'destaque')}
+        ${tile(`OEE ${escopoOEE()}`, 'factory', t.oee, t.oee == null ? (t.semCalendario ? 'cadastre o horário de funcionamento' : 'sem turnos lançados no período') : `${t.comOEE} de ${t.maquinas} máquinas · ponderado pelas horas programadas`, 'destaque')}
         ${tile('Disponibilidade', 'gauge', t.disponibilidade, 'tempo rodando ÷ tempo programado')}
         ${tile('Performance', 'zap', t.performance, 'produção ÷ (velocidade ideal × tempo rodando)')}
         ${tile('Qualidade', 'badge-check', t.qualidade, '(produzido − refugo) ÷ produzido')}
       </div>
       ${t.acimaIdeal ? `<div class="alerta aviso secao"><i data-lucide="triangle-alert"></i><div><b>${t.acimaIdeal} máquina${t.acimaIdeal === 1 ? '' : 's'} produziu acima da velocidade ideal.</b> A performance foi limitada a 100%. Confira a velocidade ideal no cadastro.</div></div>` : ''}
       <div class="dash-grade dash-21">
-        <section class="card caixa-dash"><h3><i data-lucide="trending-up"></i>OEE da planta — últimos 12 meses</h3>
-          ${graficoLinha(meses.map((m) => nomeMes(m.month)), meses.map((m) => (m.oee == null ? null : Number(m.oee))), { titulo: 'OEE da planta por mês' })}</section>
+        <section class="card caixa-dash"><h3><i data-lucide="trending-up"></i>OEE ${escopoOEE()} — últimos 12 meses</h3>
+          ${graficoLinha(meses.map((m) => nomeMes(m.month)), meses.map((m) => (m.oee == null ? null : Number(m.oee))), { titulo: `OEE ${escopoOEE()} por mês` })}</section>
         <section class="card caixa-dash"><h3><i data-lucide="info"></i>Como ler</h3><div class="small">
           <p><b>Disponibilidade</b>: quanto do tempo programado a máquina ficou rodando (paradas tiram).</p>
           <p><b>Performance</b>: quanto ela produziu comparado ao que produziria na velocidade ideal no tempo em que rodou.</p>

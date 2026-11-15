@@ -3,6 +3,7 @@
 // O banco impede sobreposição, controla o status do equipamento e só deixa
 // encerrar/corrigir horários pelas funções.
 // =====================================================================
+import { daPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -20,10 +21,10 @@ export const TIPO_PARADA = { nao_planejada: 'Não planejada', planejada: 'Planej
 export const listar = async ({ desde } = {}) => {
   let q = sb.from('vw_downtime_events').select('*');
   if (desde) q = q.or(`ended_at.is.null,ended_at.gte.${desde}`);
-  return ok(await q.order('started_at', { ascending: false }));
+  return daPlanta(ok(await q.order('started_at', { ascending: false })));
 };
 export const abertas = async () =>
-  ok(await sb.from('vw_downtime_events').select('*').is('ended_at', null).order('started_at'));
+  daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('ended_at', null).order('started_at')));
 export const doEquipamento = async (id) =>
   ok(await sb.from('vw_downtime_events').select('*').eq('equipment_id', id).order('started_at', { ascending: false }));
 export const daOS = async (id) =>

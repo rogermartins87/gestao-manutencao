@@ -6,6 +6,7 @@ import { store, pode } from '../store.js';
 import { esc, icones, fmtNum, fmtPct, fmtMoeda, hojeISO, carregando, MESES } from '../ui.js';
 import { porEquipamento as indicadoresEquip, somar as somarIndicadores, mensais as indicadoresMensais } from '../services/indicadores.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { daPlanta, temPlantas, variasPlantas, plantaEscolhida, escopoOEE } from '../plantas.js';
 import { situacao as situacaoHorimetros } from '../services/horimetros.js';
 import { listar as listarOS, ENCERRADAS } from '../services/ordens.js';
 import { abertas as paradasAbertas, fmtDuracao } from '../services/paradas.js';
@@ -22,6 +23,8 @@ export const META_DISPONIBILIDADE = 95;
 const COR_STATUS = { operando: COR.verde, em_manutencao: COR.ambar, parado: COR.vermelho };
 const nomeMes = (iso) => MESES[Number(iso.slice(5, 7)) - 1];
 const valor = (r) => (r.status === 'fulfilled' ? r.value : null);
+// Planta mostrada na saudação: a escolhida no topo, "Todas as plantas" ou (antes das plantas) a unidade das configurações
+const textoPlanta = () => (plantaEscolhida()?.name || (variasPlantas() ? 'Todas as plantas' : temPlantas() ? '' : store.empresa?.plant_name || ''));
 
 export async function render(el) {
   const agora = new Date();
@@ -31,14 +34,14 @@ export async function render(el) {
   el.innerHTML = `
     <div class="boas-vindas">
       <div><h1>${saudacao}${primeiroNome ? `, ${esc(primeiroNome)}` : ''}!</h1>
-        <p>${esc(store.empresa?.company_name || '')}${store.empresa?.plant_name ? ` · ${esc(store.empresa.plant_name)}` : ''}</p>
+        <p>${esc(store.empresa?.company_name || '')}${textoPlanta() ? ` · ${esc(textoPlanta())}` : ''}</p>
         <p>${esc(data.charAt(0).toUpperCase() + data.slice(1))}</p></div>
     </div>
     <div id="dash-corpo">${carregando('Montando o painel…')}</div>`;
 
   const hoje = hojeISO();
   const [rParadas, rOS, rPrev, rHm, rEq, rInd, rMes, rPend, rPred, rOEE, rOEEm] = await Promise.allSettled([
-    paradasAbertas(), listarOS(), agendaAberta(), situacaoHorimetros(), listarEquipamentos(),
+    paradasAbertas(), listarOS(), agendaAberta(), situacaoHorimetros(), listarEquipamentos().then((l) => daPlanta(l, 'id')),
     indicadoresEquip(`${hoje.slice(0, 8)}01`, hoje), indicadoresMensais(12), listarPendencias(), pontosPreditiva(),
     oeeEquip(`${hoje.slice(0, 8)}01`, hoje), oeeMensal(6),
   ]);
@@ -123,7 +126,7 @@ function htmlIndicadores(linhas, meses, oee, oeeMeses) {
   // OEE da planta: só aparece quando há máquinas marcadas para medir OEE
   if (oee && oee.length) {
     const p = oeePlanta(oee); const antO = (oeeMeses || []).at(-2);
-    cards.push(cartao({ rot: 'OEE da planta', icone: 'chart-pie', cor: 'royal', v: fmtPct(p.oee), var: pp(p.oee, antO?.oee), href: '#/producao',
+    cards.push(cartao({ rot: `OEE ${escopoOEE()}`, icone: 'chart-pie', cor: 'royal', v: fmtPct(p.oee), var: pp(p.oee, antO?.oee), href: '#/producao',
       nota: p.oee == null ? (p.semCalendario ? 'cadastre o horário de funcionamento' : 'sem turnos lançados no mês') : '',
       dica: p.oee == null ? '' : `Disponibilidade ${fmtPct(p.disponibilidade, 0)} · Performance ${fmtPct(p.performance, 0)} · Qualidade ${fmtPct(p.qualidade, 0)}` }));
   }

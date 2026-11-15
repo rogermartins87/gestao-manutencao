@@ -7,6 +7,8 @@ import { esc, icones, toast, traduzirErro, opcoes, textoOuNulo } from '../ui.js'
 import * as svc from '../services/equipamentos.js';
 import { abrirCategorias } from './equipamentos.js';
 import { dadosOEE } from '../services/producao.js';
+import { store } from '../store.js';
+import { temPlantas, plantasAtivas } from '../plantas.js';
 
 export async function render(el, [id]) {
   const [e, categorias] = await Promise.all([id ? svc.lerEquipamento(id) : null, svc.listarCategorias()]);
@@ -14,6 +16,9 @@ export async function render(el, [id]) {
   const v = e || { criticality: 'B', has_hour_meter: true };
   if (id) Object.assign(v, (await dadosOEE(id).catch(() => null)) || {});
   const cats = categorias.filter((c) => c.active || c.id === v.category_id);
+  // Planta: na edição, a atual; no cadastro, a escolhida no topo (ou a primeira ativa)
+  v.plant_id = id ? store.equipPlanta.get(id) : (store.planta || plantasAtivas()[0]?.id);
+  const plantas = store.plantas.filter((p) => p.active || p.id === v.plant_id);
   const campo = (nome, rotulo, extra = '', tipo = 'text') => `<div class="campo"><label for="c-${nome}">${rotulo}</label>
     <input id="c-${nome}" name="${nome}" type="${tipo}" value="${esc(v[nome] ?? '')}" ${extra}></div>`;
 
@@ -26,6 +31,8 @@ export async function render(el, [id]) {
       <div class="grade grade-form">
         ${campo('tag', 'TAG (código único) *', 'required maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9._\\/ \\-]{0,39}" placeholder="Ex.: LAS-01" style="text-transform:uppercase"')}
         ${campo('name', 'Nome do equipamento *', 'required minlength="2" maxlength="120" placeholder="Ex.: Máquina de corte a laser 01"')}
+        ${temPlantas() ? `<div class="campo"><label for="c-plant_id">Planta *</label><select id="c-plant_id" name="plant_id" required>
+          ${plantas.map((p) => `<option value="${p.id}" ${p.id === v.plant_id ? 'selected' : ''}>${esc(p.name)}${p.active ? '' : ' (desativada)'}</option>`).join('')}</select></div>` : ''}
         <div class="campo"><label for="c-category_id">Categoria</label>
           <div class="linha-form"><select id="c-category_id" name="category_id">${opcoes(cats, { valor: 'id', rotulo: 'name', selecionado: v.category_id, vazio: 'Sem categoria' })}</select>
           <button type="button" class="btn btn-icone" id="btn-cat" title="Gerenciar categorias"><i data-lucide="tags"></i></button></div></div>
@@ -105,6 +112,7 @@ export async function render(el, [id]) {
       production_unit: textoOuNulo(f.production_unit.value),
       ideal_rate: num(f.ideal_rate.value),
     };
+    if (f.plant_id) dados.plant_id = f.plant_id.value;
     try {
       const r = id ? await svc.salvarEquipamento(id, dados) : await svc.criarEquipamento(dados);
       toast(id ? 'Equipamento atualizado.' : 'Equipamento cadastrado.');

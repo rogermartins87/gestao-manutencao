@@ -2,6 +2,7 @@
 // Serviço: ordens de serviço, mão de obra, anexos e custo da hora.
 // O banco decide número, status, quem pode o quê e o custo copiado.
 // =====================================================================
+import { daPlanta } from '../plantas.js';
 import { sb, BUCKET } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -32,7 +33,7 @@ const CAMPOS = ['equipment_id', 'type', 'is_failure', 'priority', 'title', 'desc
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
 export const listar = async () =>
-  ok(await sb.from('vw_work_orders').select('*').order('created_at', { ascending: false }));
+  daPlanta(ok(await sb.from('vw_work_orders').select('*').order('created_at', { ascending: false })));
 
 export const listarDoEquipamento = async (equipmentId) =>
   ok(await sb.from('vw_work_orders').select('*').eq('equipment_id', equipmentId).order('created_at', { ascending: false }));

@@ -3,6 +3,7 @@
 // inspeções e medições. Inspeção é gravada só pela RPC registrar_inspecao
 // (o banco calcula o status de cada medição e o resultado).
 // =====================================================================
+import { daPlanta } from '../plantas.js';
 import { sb } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -38,7 +39,7 @@ const CAMPOS = ['equipment_id', 'name', 'technique', 'variable', 'unit', 'direct
   'interval_days', 'notes', 'active', 'deactivated_reason'];
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
-export const pontos = async () => ok(await sb.from('vw_inspection_points').select('*').order('equipment_tag'));
+export const pontos = async () => daPlanta(ok(await sb.from('vw_inspection_points').select('*').order('equipment_tag')));
 export const pontosDoEquipamento = async (eqId) => ok(await sb.from('vw_inspection_points').select('*').eq('equipment_id', eqId).order('name'));
 export const lerPonto = async (id) => ok(await sb.from('vw_inspection_points').select('*').eq('id', id).maybeSingle());
 export const criarPonto = async (d) => ok(await sb.from('inspection_points').insert(so(d)).select('id').single());
@@ -48,7 +49,7 @@ export const salvarPonto = async (id, d) => ok(await sb.from('inspection_points'
 export const inspecoes = async (desde) => {
   let q = sb.from('vw_inspections').select('*');
   if (desde) q = q.gte('performed_at', desde);
-  return ok(await q.order('performed_at', { ascending: false }).limit(1000));
+  return daPlanta(ok(await q.order('performed_at', { ascending: false }).limit(1000)));
 };
 export const inspecoesDoEquipamento = async (eqId) =>
   ok(await sb.from('vw_inspections').select('*').eq('equipment_id', eqId).order('performed_at', { ascending: false }).limit(500));

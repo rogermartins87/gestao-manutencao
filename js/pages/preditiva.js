@@ -6,6 +6,7 @@ import { pode } from '../store.js';
 import { esc, icones, vazio, montarTabela, fmtData, fmtDataHora, hojeISO, addDias, carregando, erroCarga, numOuNulo } from '../ui.js';
 import * as pd from '../services/preditiva.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { formularioModal } from './ordem-ficha.js';
 
 export const badgeResultado = (s) => {
@@ -67,7 +68,7 @@ export function tabelaInspecoes(container, lista, { semEquipamento = false } = {
 
 // ---------- Cadastro / edição de ponto (modal) ----------
 export async function abrirPonto({ ponto = null, equipamentoId = null, depois } = {}) {
-  const eqs = ponto ? [] : (await listarEquipamentos()).filter((e) => e.status !== 'desativado');
+  const eqs = ponto ? [] : equipamentosParaEscolher(await listarEquipamentos(), equipamentoId).filter((e) => e.status !== 'desativado');
   const v = ponto || { technique: 'vibracao', direction: 'acima', equipment_id: equipamentoId };
   const num = (x) => (x == null ? '' : String(Number(x)).replace('.', ','));
   formularioModal({

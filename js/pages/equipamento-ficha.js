@@ -3,6 +3,7 @@
 // documentos, horímetro (leituras, gráfico, correção) e alterações (auditoria).
 // =====================================================================
 import { pode } from '../store.js';
+import { temPlantas, plantaDoEquipamento, nomePlanta } from '../plantas.js';
 import { esc, icones, toast, traduzirErro, abrirModal, carregando, vazio, erroCarga, fmtData, fmtDataHora, fmtNum, fmtMoeda, comprimirImagem, montarTabela } from '../ui.js';
 import * as svc from '../services/equipamentos.js';
 import { badgeStatus, fmtHorimetro } from './equipamentos.js';
@@ -43,7 +44,7 @@ export async function render(el, [id]) {
     <div class="card ficha-topo st-${st?.cor}"><div class="card-corpo">
       <div class="ficha-cab">
         <div><div class="equip-tag grande">${esc(e.tag)}</div><h1>${esc(e.name)}</h1>
-          <div class="muted">${esc([e.category_name, e.sector, e.location].filter(Boolean).join(' · ') || 'Sem categoria')}</div></div>
+          <div class="muted">${esc([temPlantas() ? plantaDoEquipamento(e.id) : null, e.category_name, e.sector, e.location].filter(Boolean).join(' · ') || 'Sem categoria')}</div></div>
         <div class="acoes">
           ${pode('equipment.status') ? '<button class="btn" id="btn-status"><i data-lucide="refresh-cw"></i> Alterar status</button>' : ''}
           ${pode('equipment.write') ? `<a class="btn" href="#/equipamentos/${e.id}/editar"><i data-lucide="pencil"></i> Editar</a>` : ''}
@@ -75,7 +76,7 @@ function abaDados(corpo, e) {
   const linha = (rot, v) => `<dt>${esc(rot)}</dt><dd>${v == null || v === '' ? '<span class="muted">—</span>' : esc(v)}</dd>`;
   corpo.innerHTML = `<div class="grade grade-2">
     <div class="card"><div class="card-titulo"><h3><i data-lucide="factory"></i> Identificação</h3></div><div class="card-corpo"><dl class="dados-conta">
-      ${linha('TAG', e.tag)}${linha('Nome', e.name)}${linha('Categoria', e.category_name)}${linha('Setor', e.sector)}${linha('Localização', e.location)}
+      ${linha('TAG', e.tag)}${linha('Nome', e.name)}${temPlantas() ? linha('Planta', plantaDoEquipamento(e.id)) : ''}${linha('Categoria', e.category_name)}${linha('Setor', e.sector)}${linha('Localização', e.location)}
       ${linha('Criticidade', svc.CRITICIDADE[e.criticality])}
     </dl></div></div>
     <div class="card"><div class="card-titulo"><h3><i data-lucide="cog"></i> Dados técnicos</h3></div><div class="card-corpo"><dl class="dados-conta">
@@ -346,7 +347,7 @@ const ROTULO = {
   tag: 'TAG', name: 'Nome', category_id: 'Categoria', sector: 'Setor', location: 'Localização', manufacturer: 'Fabricante',
   model: 'Modelo', serial_number: 'Nº de série', manufacture_year: 'Ano de fabricação', installed_at: 'Instalado em',
   criticality: 'Criticidade', status: 'Status', has_hour_meter: 'Possui horímetro', hour_meter_stale_days: 'Dias para alerta de horímetro',
-  notes: 'Observações', removed_at: 'Removido em', title: 'Título',
+  plant_id: 'Planta', notes: 'Observações', removed_at: 'Removido em', title: 'Título',
 };
 const OCULTOS = new Set(['updated_at', 'updated_by', 'created_at', 'created_by', 'status_changed_at', 'removed_by', 'id']);
 
@@ -356,6 +357,7 @@ async function abaAlteracoes(corpo, e) {
   const val = (c, v) => {
     if (v == null || v === '') return '—';
     if (c === 'category_id') return nomeCat[v] || v;
+    if (c === 'plant_id') return nomePlanta(v) || v;
     if (c === 'status') return svc.STATUS[v]?.nome || v;
     if (typeof v === 'boolean') return v ? 'Sim' : 'Não';
     if (c === 'removed_at') return fmtDataHora(v);

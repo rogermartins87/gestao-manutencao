@@ -1450,3 +1450,20 @@ body.com-dica-app .toasts { bottom: 200px; }
 @keyframes dica-sobe { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 .dica-app-instalar[hidden] { display: none; }
 body.com-dica-app { padding-bottom: 240px; }
+
+/* ---------- Planta escolhida (topo) ---------- */
+.seletor-planta { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; height: 34px; border: 1px solid var(--borda); border-radius: 99px; background: var(--superficie); color: var(--base-800); cursor: pointer; }
+.seletor-planta svg { width: 16px; height: 16px; flex: none; color: #0763e0; }
+.seletor-planta select { border: 0; background: transparent; font: inherit; font-size: .85rem; font-weight: 600; color: inherit; padding: 0 22px 0 0; height: 32px; max-width: 170px; cursor: pointer; box-shadow: none; }
+.seletor-planta select:focus { outline: none; }
+.seletor-planta:focus-within { border-color: #0763e0; box-shadow: 0 0 0 3px rgba(7, 99, 224, .15); }
+.planta-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .78rem; color: var(--texto-2, #5b6b7f); white-space: nowrap; }
+.planta-chip svg { width: 13px; height: 13px; }
+@media (max-width: 720px) {
+  /* no celular, a planta ocupa o lugar do título (cada página já tem o próprio título) */
+  .topo:has(.seletor-planta) .titulo { display: none; }
+  .topo:has(.seletor-planta) .usuario-menu { flex: 1; min-width: 0; }
+  #caixa-planta { flex: 1; min-width: 0; display: flex; }
+  .seletor-planta { flex: 1; min-width: 0; padding-left: 10px; }
+  .seletor-planta select { max-width: none; width: 100%; min-width: 0; font-size: .85rem; }
+}

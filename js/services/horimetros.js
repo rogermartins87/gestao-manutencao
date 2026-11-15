@@ -3,6 +3,7 @@
 // O banco valida e calcula tudo (delta, bloqueios, correção). A tela só envia
 // equipamento, valor, data/hora, observação e foto.
 // =====================================================================
+import { daPlanta } from '../plantas.js';
 import { sb, BUCKET } from '../supabase.js';
 
 const ok = ({ data, error }) => { if (error) throw error; return data; };
@@ -16,7 +17,7 @@ export const TIPO = { inicial: 'Inicial', normal: 'Leitura', correcao: 'Correç�
 export const STATUS_LEITURA = { valida: 'Válida', substituida: 'Corrigida', anulada: 'Anulada' };
 
 export const situacao = async () =>
-  ok(await sb.from('vw_horimetro_situacao').select('*').order('tag'));
+  daPlanta(ok(await sb.from('vw_horimetro_situacao').select('*').order('tag')), 'id');
 
 export const situacaoEquipamento = async (id) =>
   ok(await sb.from('vw_horimetro_situacao').select('*').eq('id', id).maybeSingle());

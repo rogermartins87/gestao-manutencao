@@ -6,6 +6,7 @@ import { store, carregarPerfil, limparSessao, pode, ativo } from './store.js';
 import { esc, icones, toast, traduzirErro, abrirModal, carregando } from './ui.js';
 import { htmlSino, iniciarSino, pararSino } from './sino.js';
 import { mostrarDicaApp } from './instalar.js';
+import { carregarPlantas, carregarMapaPlantas, variasPlantas, plantasAtivas, escolherPlanta } from './plantas.js';
 
 const raiz = document.getElementById('raiz');
 const NOME_SISTEMA = 'Gestão de Manutenção';
@@ -95,6 +96,7 @@ async function rotear() {
   conteudo.innerHTML = carregando();
   window.scrollTo({ top: 0 });
   try {
+    await carregarMapaPlantas();
     const mod = await rota.pagina();
     await mod.render(conteudo, params, { caminho, item });
   } catch (e) {
@@ -135,6 +137,7 @@ function renderLayout() {
         <button class="btn btn-icone btn-texto btn-menu" id="btn-menu" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
         <div class="titulo" id="titulo-pagina"></div>
         <div class="usuario-menu">
+          <span id="caixa-planta">${htmlSeletorPlanta()}</span>
           ${htmlSino()}
           <a class="avatar" href="#/minha-conta" title="Minha conta: ${esc(nome)}" style="text-decoration:none">${esc(iniciaisDe(nome) || '?')}</a>
           <a class="nome small" href="#/minha-conta" style="color:inherit;text-decoration:none">${esc(nome)}</a>
@@ -164,7 +167,29 @@ function renderLayout() {
   document.getElementById('btn-menu').onclick = () => (window.innerWidth > 960 ? btnRecolher.click() : document.querySelector('.app').classList.add('menu-aberto'));
   document.querySelector('[data-fechar-menu]').onclick = () => document.querySelector('.app').classList.remove('menu-aberto');
   document.getElementById('btn-sair').onclick = async () => { pararSino(); await sb.auth.signOut(); };
+  ligarSeletorPlanta();
   iniciarSino();
+}
+
+// ---------- Planta escolhida (só aparece quando há duas ou mais plantas ativas) ----------
+function htmlSeletorPlanta() {
+  if (!variasPlantas()) return '';
+  return `<label class="seletor-planta" title="Planta: filtra listas, dashboard e relatórios">
+    <i data-lucide="building-2"></i>
+    <select id="sel-planta" aria-label="Planta">
+      <option value="">Todas as plantas</option>
+      ${plantasAtivas().map((p) => `<option value="${p.id}" ${p.id === store.planta ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+    </select></label>`;
+}
+function ligarSeletorPlanta() {
+  const sel = document.getElementById('sel-planta');
+  if (sel) sel.onchange = () => { escolherPlanta(sel.value); rotear(); };
+}
+// Chamado depois de cadastrar/alterar plantas
+export async function atualizarPlantas() {
+  await carregarPlantas();
+  const caixa = document.getElementById('caixa-planta');
+  if (caixa) { caixa.innerHTML = htmlSeletorPlanta(); ligarSeletorPlanta(); icones(); }
 }
 
 // ---------- Telas sem sessão ----------
@@ -287,6 +312,7 @@ async function iniciarSessao() {
     await carregarPerfil();
     if (!store.perfil) throw new Error('Cadastro do usuário não encontrado. Saia e entre novamente.');
     if (!ativo()) { telaAguardando(); return; }
+    await carregarPlantas();
     renderLayout();
     rotear();
   } catch (e) {
@@ -302,6 +328,7 @@ async function iniciarSessao() {
 export async function recarregarSessao() {
   await carregarPerfil();
   if (!ativo()) { telaAguardando(); return; }
+  await carregarPlantas();
   renderLayout();
   rotear();
 }

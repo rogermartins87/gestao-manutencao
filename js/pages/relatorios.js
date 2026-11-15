@@ -10,6 +10,7 @@ import {
 } from '../ui.js';
 import * as ind from '../services/indicadores.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { daPlanta, variasPlantas, plantaEscolhida } from '../plantas.js';
 import { STATUS_OS, TIPO_OS } from '../services/ordens.js';
 import { fmtDuracao, CATEGORIA, TIPO_PARADA } from '../services/paradas.js';
 import { TECNICA, RESULTADO } from '../services/preditiva.js';
@@ -68,9 +69,10 @@ function ligarFiltro(raiz, aoMudar) {
   raiz.querySelector('#f-eq').onchange = (ev) => { filtro.eq = ev.target.value; aoMudar(); };
 }
 const textoPeriodo = () => { const [a, b] = datasDoPeriodo(filtro.per, filtro); return `${fmtData(a)} a ${fmtData(b)}`; };
-const nomeEq = () => { const e = equipamentos.find((x) => x.id === filtro.eq); return e ? `${e.tag} — ${e.name}` : 'Todos os equipamentos'; };
+const nomeEq = () => { const e = equipamentos.find((x) => x.id === filtro.eq); return e ? `${e.tag} — ${e.name}` : plantaEscolhida() ? `Todos os equipamentos da planta ${plantaEscolhida().name}` : variasPlantas() ? 'Todos os equipamentos (todas as plantas)' : 'Todos os equipamentos'; };
 const arquivo = (base) => { const [a, b] = datasDoPeriodo(filtro.per, filtro); const e = equipamentos.find((x) => x.id === filtro.eq);
-  return `${base}_${a}_a_${b}${e ? `_${e.tag.replace(/[^A-Za-z0-9-]/g, '')}` : ''}.csv`; };
+  const pl = plantaEscolhida(); const sufixo = e ? e.tag : pl ? (pl.code || pl.name) : '';
+  return `${base}_${a}_a_${b}${sufixo ? `_${sufixo.replace(/[^A-Za-z0-9-]/g, '')}` : ''}.csv`; };
 
 // ---------- Números ----------
 const h1 = (v) => (v == null ? '—' : `${fmtNum(v, 1)} h`);
@@ -486,10 +488,11 @@ export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   let aba = ABAS[params.get('aba')] ? params.get('aba') : 'indicadores';
   if (idDaUrl(params.get('equipamento'))) filtro.eq = idDaUrl(params.get('equipamento'));
-  equipamentos = (await listarEquipamentos()).sort((a, b) => a.tag.localeCompare(b.tag, 'pt-BR', { numeric: true }));
+  equipamentos = daPlanta(await listarEquipamentos(), 'id').sort((a, b) => a.tag.localeCompare(b.tag, 'pt-BR', { numeric: true }));
+  if (filtro.eq && !equipamentos.some((e) => e.id === filtro.eq)) filtro.eq = '';   // trocou de planta
   el.innerHTML = `
     <div class="cabecalho-pagina nao-imprimir"><div><h1>Relatórios</h1>
-      <p>Disponibilidade, MTBF, MTTR e custos calculados a partir das paradas, horímetros e ordens de serviço. Baixe em Excel ou imprima em PDF.</p></div></div>
+      <p>${plantaEscolhida() ? `Planta <b>${esc(plantaEscolhida().name)}</b> · ` : variasPlantas() ? '<b>Todas as plantas</b> · ' : ''}Disponibilidade, MTBF, MTTR e custos calculados a partir das paradas, horímetros e ordens de serviço. Baixe em Excel ou imprima em PDF.</p></div></div>
     <div class="abas nao-imprimir" role="tablist">${Object.entries(ABAS).map(([k, v]) => `<button class="aba" data-aba="${k}">${v}</button>`).join('')}</div>
     <div id="aba-rel"></div>`;
   let corpo = el.querySelector('#aba-rel');

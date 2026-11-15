@@ -2,7 +2,8 @@
 // Equipamentos — visão geral (grade com status por cor ou lista), filtros
 // e cadastro de categorias.
 // =====================================================================
-import { pode } from '../store.js';
+import { pode, store } from '../store.js';
+import { daPlanta, variasPlantas, plantaEscolhida, plantaDoEquipamento } from '../plantas.js';
 import { esc, icones, toast, traduzirErro, abrirModal, vazio, montarTabela, fmtNum, fmtDataHora } from '../ui.js';
 import * as svc from '../services/equipamentos.js';
 
@@ -17,7 +18,9 @@ export const fmtHorimetro = (e) => (!e.has_hour_meter ? 'Sem horímetro'
   : e.current_hour_meter == null ? 'Sem leitura' : `${fmtNum(e.current_hour_meter, 1)} h`);
 
 export async function render(el) {
-  const [equipamentos, categorias] = await Promise.all([svc.listarEquipamentos(), svc.listarCategorias()]);
+  const [todos, categorias] = await Promise.all([svc.listarEquipamentos(), svc.listarCategorias()]);
+  const equipamentos = daPlanta(todos, 'id');
+  const verPlanta = variasPlantas() && !store.planta;   // em "Todas as plantas", mostra de qual planta é
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   const f = {
     busca: params.get('busca') || '',
@@ -32,7 +35,7 @@ export async function render(el) {
 
   el.innerHTML = `
     <div class="cabecalho-pagina"><div><h1>Equipamentos</h1>
-      <p>Visão geral do parque de máquinas e status de cada equipamento.</p></div>
+      <p>${plantaEscolhida() ? `Planta <b>${esc(plantaEscolhida().name)}</b> · ` : ''}Visão geral do parque de máquinas e status de cada equipamento.</p></div>
       <div class="acoes">
         ${podeCadastrar ? '<button class="btn" id="btn-categorias"><i data-lucide="tags"></i> Categorias</button>' : ''}
         ${podeCadastrar ? '<a class="btn btn-primario" href="#/equipamentos/novo"><i data-lucide="plus"></i> Novo equipamento</a>' : ''}
@@ -63,7 +66,7 @@ export async function render(el) {
       && (!f.categoria || (f.categoria === '-' ? !e.category_id : e.category_id === f.categoria))
       && (!f.setor || e.sector === f.setor)
       && (!f.criticidade || e.criticality === f.criticidade)
-      && (!t || [e.tag, e.name, e.manufacturer, e.model, e.serial_number, e.sector, e.category_name]
+      && (!t || [e.tag, e.name, e.manufacturer, e.model, e.serial_number, e.sector, e.category_name, plantaDoEquipamento(e.id)]
         .some((v) => String(v || '').toLowerCase().includes(t))));
   };
 
@@ -95,7 +98,7 @@ export async function render(el) {
           <div class="equip-topo"><span class="equip-tag">${esc(e.tag)}</span>
             <span class="crit crit-${e.criticality}" title="Criticidade ${e.criticality}">${e.criticality}</span></div>
           <div class="equip-nome">${esc(e.name)}</div>
-          <div class="equip-meta">${esc([e.category_name, e.sector].filter(Boolean).join(' · ') || 'Sem categoria')}</div>
+          <div class="equip-meta">${esc([verPlanta ? plantaDoEquipamento(e.id) : null, e.category_name, e.sector].filter(Boolean).join(' · ') || 'Sem categoria')}</div>
           <div class="equip-rodape">${badgeStatus(e.status)}<span class="small muted"><i data-lucide="gauge"></i> ${esc(fmtHorimetro(e))}</span></div>
         </a>`).join('')}</div>` : `<div class="card">${vazio({ icone: 'search-x', titulo: 'Nenhum equipamento com esses filtros' })}</div>`}`;
     } else {
@@ -106,6 +109,7 @@ export async function render(el) {
         colunas: [
           { titulo: 'TAG', chave: 'tag', primaria: true, render: (e) => `<b>${esc(e.tag)}</b>` },
           { titulo: 'Equipamento', chave: 'name' },
+          ...(verPlanta ? [{ titulo: 'Planta', valor: (e) => plantaDoEquipamento(e.id), render: (e) => esc(plantaDoEquipamento(e.id) || '—') }] : []),
           { titulo: 'Categoria', valor: (e) => e.category_name || '', render: (e) => esc(e.category_name || '—') },
           { titulo: 'Setor', valor: (e) => e.sector || '', render: (e) => esc(e.sector || '—') },
           { titulo: 'Crit.', chave: 'criticality', render: (e) => `<span class="crit crit-${e.criticality}">${e.criticality}</span>` },

@@ -5,6 +5,7 @@
 import { esc, icones, traduzirErro, toast, numOuNulo, fmtNum, hojeISO, addDias, idDaUrl } from '../ui.js';
 import * as pv from '../services/preventiva.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { responsaveis, PRIORIDADE } from '../services/ordens.js';
 
 export async function render(el, [id]) {
@@ -14,7 +15,7 @@ export async function render(el, [id]) {
   ]);
   if (id && !p) { el.innerHTML = '<div class="alerta aviso">Plano não encontrado. <a href="#/preventiva?aba=planos">Voltar</a></div>'; return; }
   const v = p || { trigger: 'calendario', tolerance_days: 3, tolerance_hours: 0, priority: 'media', equipment_id: idDaUrl(params.get('equipamento')) || '' };
-  const ativos = equipamentos.filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
+  const ativos = equipamentosParaEscolher(equipamentos, v.equipment_id).filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
   const voltar = id ? `#/preventiva/planos/${id}` : idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=preventiva` : '#/preventiva?aba=planos';
   const num = (x) => (x == null ? '' : String(Number(x)).replace('.', ','));
 
