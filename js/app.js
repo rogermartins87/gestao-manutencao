@@ -24,6 +24,7 @@ export const MENU = [
   { rota: 'pendencias', titulo: 'Pendências', icone: 'list-todo', etapa: 10, pronta: true },
   { rota: 'relatorios', titulo: 'Relatórios', icone: 'file-bar-chart', etapa: 11, pronta: true },
   { rota: 'usuarios', titulo: 'Usuários e configurações', icone: 'users', etapa: 2, pronta: true, permAlguma: ['users.manage', 'settings.manage', 'audit.read', 'costs.read'] },
+  { rota: 'ajuda', titulo: 'Ajuda', icone: 'circle-help' },
 ];
 
 const ROTAS = [
@@ -55,6 +56,7 @@ const ROTAS = [
   { re: /^pecas\/([0-9a-f-]{36})$/, pagina: () => import('./pages/peca-ficha.js'), titulo: 'Peça' },
   { re: /^producao$/, pagina: () => import('./pages/producao.js'), titulo: 'Produção e OEE' },
   { re: /^relatorios$/, pagina: () => import('./pages/relatorios.js'), titulo: 'Relatórios' },
+  { re: /^ajuda$/, pagina: () => import('./pages/ajuda.js'), titulo: 'Ajuda' },
   { re: /^usuarios$/, pagina: () => import('./pages/usuarios.js'), titulo: 'Usuários e configurações', permAlguma: ['users.manage', 'settings.manage', 'audit.read', 'costs.read'] },
   ...MENU.filter((m) => m.etapa && !m.pronta).map((m) => ({
     re: new RegExp(`^${m.rota}(?:/.*)?$`),

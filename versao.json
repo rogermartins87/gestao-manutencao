@@ -1,10 +1,11 @@
 {
-  "gerado_em": "2026-11-15T09:20:42",
+  "gerado_em": "2026-11-15T09:48:19",
   "arquivos": {
-    "css/styles.css": "8bc04bd7d6",
-    "js/app.js": "b123fb03c9",
+    "css/styles.css": "10a7480c23",
+    "js/app.js": "cbbf52f61f",
     "js/config.js": "d5c2b0958d",
     "js/graficos.js": "06a0c5d3ab",
+    "js/pages/ajuda.js": "656bc6978d",
     "js/pages/dashboard.js": "5098f4d01e",
     "js/pages/em-breve.js": "de7576dc50",
     "js/pages/equipamento-ficha.js": "ef78bd1339",
