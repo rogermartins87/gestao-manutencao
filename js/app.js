@@ -19,6 +19,7 @@ export const MENU = [
   { rota: 'preventiva', titulo: 'Planejamento preventivo', icone: 'calendar-check', etapa: 8, pronta: true },
   { rota: 'preditiva', titulo: 'Manutenção preditiva', icone: 'activity', etapa: 9, pronta: true },
   { rota: 'paradas', titulo: 'Paradas', icone: 'octagon-pause', etapa: 6, pronta: true },
+  { rota: 'producao', titulo: 'Produção e OEE', icone: 'chart-pie', etapa: 13, pronta: true },
   { rota: 'pecas', titulo: 'Peças e componentes', icone: 'cog', etapa: 7, pronta: true },
   { rota: 'pendencias', titulo: 'Pendências', icone: 'list-todo', etapa: 10, pronta: true },
   { rota: 'relatorios', titulo: 'Relatórios', icone: 'file-bar-chart', etapa: 11, pronta: true },
@@ -52,6 +53,7 @@ const ROTAS = [
   { re: /^pendencias\/([0-9a-f-]{36})$/, pagina: () => import('./pages/pendencia-ficha.js'), titulo: 'Pendência' },
   { re: /^pecas$/, pagina: () => import('./pages/pecas.js'), titulo: 'Peças e componentes' },
   { re: /^pecas\/([0-9a-f-]{36})$/, pagina: () => import('./pages/peca-ficha.js'), titulo: 'Peça' },
+  { re: /^producao$/, pagina: () => import('./pages/producao.js'), titulo: 'Produção e OEE' },
   { re: /^relatorios$/, pagina: () => import('./pages/relatorios.js'), titulo: 'Relatórios' },
   { re: /^usuarios$/, pagina: () => import('./pages/usuarios.js'), titulo: 'Usuários e configurações', permAlguma: ['users.manage', 'settings.manage', 'audit.read', 'costs.read'] },
   ...MENU.filter((m) => m.etapa && !m.pronta).map((m) => ({

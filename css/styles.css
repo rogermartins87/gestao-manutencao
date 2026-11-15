@@ -1299,8 +1299,7 @@ a { color: #0552c4; }
 .alerta-dash .d { font-size: .76rem; color: #7a8496; }
 .al-vermelho { --cor-al: #c53030; } .al-ambar { --cor-al: #c27c00; } .al-marinho { --cor-al: #13306b; } .al-ok { --cor-al: #2e7d32; }
 
-.grade-kpi-dash { display: grid; gap: 14px; grid-template-columns: repeat(5, 1fr); }
-.grade-kpi-dash.sem-custo { grid-template-columns: repeat(4, 1fr); }
+.grade-kpi-dash { display: grid; gap: 14px; grid-template-columns: repeat(var(--k, 5), minmax(0, 1fr)); }
 .kpi-dash .valor { font-size: 1.75rem; font-weight: 800; }
 .kpi-dash .tend { font-size: .75rem; font-weight: 700; color: #7a8496; } .kpi-dash .tend.bom { color: #2e7d32; } .kpi-dash .tend.ruim { color: #c53030; }
 .kpi.destaque.kpi-dash .tend { color: #a9c3f0; } .kpi.destaque.kpi-dash .tend.bom { color: #6fdc8c; } .kpi.destaque.kpi-dash .tend.ruim { color: #ff8a8a; }
@@ -1337,13 +1336,22 @@ a { color: #0552c4; }
 .graf-vazio svg { width: 28px; height: 28px; color: #c3ccd9; }
 
 @media (min-width: 1201px) { .alertas-dash { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); } }
-@media (max-width: 1200px) { .grade-kpi-dash, .grade-kpi-dash.sem-custo { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 1200px) { .grade-kpi-dash { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 960px) { .dash-21, .dash-2 { grid-template-columns: 1fr; } }
 @media (max-width: 700px) {
   .alertas-dash { grid-template-columns: 1fr 1fr; gap: 10px; }
   .alerta-dash .n { font-size: 1.6rem; }
-  .grade-kpi-dash, .grade-kpi-dash.sem-custo { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grade-kpi-dash { grid-template-columns: 1fr 1fr; gap: 10px; }
   .kpi-dash .valor { font-size: 1.4rem; }
   .ranking-l { grid-template-columns: minmax(0, 1fr) 70px 56px; }
   .rosca-dash { gap: 14px; flex-wrap: nowrap; } .rosca-dash .rosca { width: 108px; height: 108px; flex: none; } .rosca-dash .legenda-dash { min-width: 0; font-size: .82rem; }
 }
+
+/* Produção e OEE (Etapa 13) */
+.barra-oee { display: block; height: 6px; width: 90px; margin: 4px 0 0 auto; background: #eef1f6; border-radius: 4px; overflow: hidden; }
+.barra-oee span { display: block; height: 100%; border-radius: 4px; }
+.campo-un { display: flex; align-items: center; gap: 6px; } .campo-un input { width: 120px; text-align: right; } .campo-un span { font-size: .8rem; color: var(--texto-3, #7a8496); }
+.tabela-lancar td { vertical-align: middle; } .tabela-lancar tr.ja-lancado { background: #f6faf6; }
+.tabela-lancar input[name=o] { width: 100%; min-width: 160px; }
+.campo-oee[hidden] { display: none !important; }
+@media (max-width: 700px) { .campo-un input { width: 100%; } .barra-oee { margin-left: 0; } }

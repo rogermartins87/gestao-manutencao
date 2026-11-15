@@ -6,11 +6,13 @@
 import { esc, icones, toast, traduzirErro, opcoes, textoOuNulo } from '../ui.js';
 import * as svc from '../services/equipamentos.js';
 import { abrirCategorias } from './equipamentos.js';
+import { dadosOEE } from '../services/producao.js';
 
 export async function render(el, [id]) {
   const [e, categorias] = await Promise.all([id ? svc.lerEquipamento(id) : null, svc.listarCategorias()]);
   if (id && !e) { el.innerHTML = '<div class="alerta aviso">Equipamento não encontrado.</div>'; return; }
   const v = e || { criticality: 'B', has_hour_meter: true };
+  if (id) Object.assign(v, (await dadosOEE(id).catch(() => null)) || {});
   const cats = categorias.filter((c) => c.active || c.id === v.category_id);
   const campo = (nome, rotulo, extra = '', tipo = 'text') => `<div class="campo"><label for="c-${nome}">${rotulo}</label>
     <input id="c-${nome}" name="${nome}" type="${tipo}" value="${esc(v[nome] ?? '')}" ${extra}></div>`;
@@ -45,12 +47,28 @@ export async function render(el, [id]) {
         <label class="check-linha"><input type="checkbox" name="has_hour_meter" ${v.has_hour_meter ? 'checked' : ''}> Este equipamento possui horímetro</label>
         ${campo('hour_meter_stale_days', 'Alertar após quantos dias sem leitura', 'min="1" max="365" step="1" placeholder="Padrão da empresa"', 'number')}
       </div>
+      <h3>Produção (OEE)</h3>
+      <div class="grade grade-form">
+        <label class="check-linha"><input type="checkbox" name="oee_enabled" id="c-oee" ${v.oee_enabled ? 'checked' : ''}> Esta máquina produz e mede OEE (a produção é lançada por turno)</label>
+        <div class="campo campo-oee"><label for="c-production_unit">Unidade de produção *</label>
+          <input id="c-production_unit" name="production_unit" maxlength="20" value="${esc(v.production_unit ?? '')}" placeholder="Ex.: t, peças, barras, m" list="lista-unidades"></div>
+        <div class="campo campo-oee"><label for="c-ideal_rate">Velocidade ideal (por hora) *</label>
+          <input id="c-ideal_rate" name="ideal_rate" type="number" min="0.001" step="any" value="${esc(v.ideal_rate ?? '')}" placeholder="Ex.: 45"></div>
+        <p class="small muted campo-oee" style="margin:0;grid-column:1/-1">Velocidade ideal = quanto a máquina produz em 1 hora rodando na velocidade de projeto (ou a melhor velocidade sustentada). Mudar este valor não muda o OEE de turnos já lançados.</p>
+      </div>
       <div class="campo"><label for="c-notes">Observações</label><textarea id="c-notes" name="notes" rows="3" maxlength="2000">${esc(v.notes || '')}</textarea></div>
       <div id="msg-equip"></div>
       <div class="acoes"><button class="btn btn-primario" type="submit"><i data-lucide="save"></i> ${id ? 'Salvar alterações' : 'Cadastrar equipamento'}</button>
         <a class="btn" href="${id ? `#/equipamentos/${id}` : '#/equipamentos'}">Cancelar</a></div>
     </div></form>
-    <datalist id="lista-setores"></datalist>`;
+    <datalist id="lista-setores"></datalist>
+    <datalist id="lista-unidades"><option value="t"><option value="peças"><option value="barras"><option value="m"><option value="kg"><option value="cortes"><option value="bobinas"></datalist>`;
+
+  const oee = el.querySelector('#c-oee');
+  const mostrarOEE = () => el.querySelectorAll('.campo-oee').forEach((x) => {
+    x.hidden = !oee.checked; x.querySelectorAll('input').forEach((i) => { i.required = oee.checked; });
+  });
+  oee.addEventListener('change', mostrarOEE); mostrarOEE();
 
   svc.listarEquipamentos().then((lista) => {
     const setores = [...new Set(lista.map((x) => x.sector).filter(Boolean))].sort();
@@ -83,13 +101,17 @@ export async function render(el, [id]) {
       has_hour_meter: f.has_hour_meter.checked,
       hour_meter_stale_days: num(f.hour_meter_stale_days.value),
       notes: textoOuNulo(f.notes.value),
+      oee_enabled: f.oee_enabled.checked,
+      production_unit: textoOuNulo(f.production_unit.value),
+      ideal_rate: num(f.ideal_rate.value),
     };
     try {
       const r = id ? await svc.salvarEquipamento(id, dados) : await svc.criarEquipamento(dados);
       toast(id ? 'Equipamento atualizado.' : 'Equipamento cadastrado.');
       location.hash = `#/equipamentos/${r.id}`;
     } catch (err) {
-      const msg = /equipment_tag_idx|duplicate/i.test(`${err.message}`) ? `Já existe um equipamento com a TAG ${dados.tag}.` : traduzirErro(err);
+      const msg = /equipment_tag_idx|duplicate/i.test(`${err.message}`) ? `Já existe um equipamento com a TAG ${dados.tag}.`
+        : /equipamento_oee_completo/.test(`${err.message}`) ? 'Para medir OEE, informe a unidade de produção e a velocidade ideal.' : traduzirErro(err);
       el.querySelector('#msg-equip').innerHTML = `<div class="alerta perigo">${esc(msg)}</div>`;
       btn.disabled = false;
     }

@@ -14,6 +14,7 @@ import { agendaAberta } from '../services/preventiva.js';
 import { pontos as pontosPreditiva } from '../services/preditiva.js';
 import { listar as listarPendencias, ABERTAS as PEND_ABERTAS } from '../services/pendencias.js';
 import { COR, barras, linha, rosca, legenda, ranking, mini, semDados } from '../graficos.js';
+import { porEquipamento as oeeEquip, mensal as oeeMensal, planta as oeePlanta } from '../services/producao.js';
 
 // Linha de referência no gráfico de disponibilidade
 export const META_DISPONIBILIDADE = 95;
@@ -37,16 +38,17 @@ export async function render(el) {
     <div id="dash-corpo">${carregando('Montando o painel…')}</div>`;
 
   const hoje = hojeISO();
-  const [rParadas, rOS, rPrev, rHm, rEq, rInd, rMes, rPend, rPred] = await Promise.allSettled([
+  const [rParadas, rOS, rPrev, rHm, rEq, rInd, rMes, rPend, rPred, rOEE, rOEEm] = await Promise.allSettled([
     paradasAbertas(), listarOS(), agendaAberta(), situacaoHorimetros(), listarEquipamentos(),
     indicadoresEquip(`${hoje.slice(0, 8)}01`, hoje), indicadoresMensais(12), listarPendencias(), pontosPreditiva(),
+    oeeEquip(`${hoje.slice(0, 8)}01`, hoje), oeeMensal(6),
   ]);
-  [rParadas, rOS, rPrev, rHm, rEq, rInd, rMes, rPend, rPred].forEach((r) => r.status === 'rejected' && console.warn(r.reason));
+  [rParadas, rOS, rPrev, rHm, rEq, rInd, rMes, rPend, rPred, rOEE, rOEEm].forEach((r) => r.status === 'rejected' && console.warn(r.reason));
 
   const corpo = el.querySelector('#dash-corpo');
   corpo.innerHTML = [
     htmlAlertas({ paradas: valor(rParadas), os: valor(rOS), prev: valor(rPrev), hm: valor(rHm), pend: valor(rPend), pred: valor(rPred) }),
-    htmlIndicadores(valor(rInd), valor(rMes)),
+    htmlIndicadores(valor(rInd), valor(rMes), valor(rOEE), valor(rOEEm)),
     `<div class="dash-grade dash-21">${htmlDisponibilidade(valor(rMes))}${htmlEquipamentos(valor(rEq), valor(rHm), valor(rPrev))}</div>`,
     `<div class="dash-grade dash-2">${htmlHorasParadas(valor(rMes))}${htmlRanking(valor(rInd))}</div>`,
     `<div class="dash-grade dash-2">${htmlOS(valor(rOS))}${htmlParadas(valor(rParadas))}</div>`,
@@ -96,7 +98,7 @@ function htmlAlertas({ paradas, os, prev, hm, pend, pred }) {
 }
 
 // ---------- 2) Indicadores do mês ----------
-function htmlIndicadores(linhas, meses) {
+function htmlIndicadores(linhas, meses, oee, oeeMeses) {
   if (!linhas) return '';
   const t = somarIndicadores(linhas);
   const ult = (meses || []).slice(-6); const ant = (meses || []).at(-2);
@@ -113,7 +115,18 @@ function htmlIndicadores(linhas, meses) {
   const cartao = (rot, icone, v, tend, det, s, cl = '') => `<a class="card kpi kpi-dash ${cl}" href="#/relatorios"><span class="rotulo"><i data-lucide="${icone}"></i> ${esc(rot)}</span>
     <span class="valor">${v}</span>${tend}<span class="detalhe">${det}</span>${s}</a>`;
   const custo = t.custos && pode('costs.read');
-  return `<div class="grade-kpi-dash${custo ? '' : ' sem-custo'}">
+  // OEE da planta: só aparece quando há máquinas marcadas para medir OEE
+  let cardOEE = '';
+  if (oee && oee.length) {
+    const p = oeePlanta(oee); const antO = (oeeMeses || []).at(-2);
+    cardOEE = `<a class="card kpi kpi-dash" href="#/producao"><span class="rotulo"><i data-lucide="chart-pie"></i> OEE da planta</span>
+      <span class="valor">${fmtPct(p.oee)}</span>${delta(p.oee, antO?.oee, { maiorMelhor: true, un: ' p.p.' })}
+      <span class="detalhe">${p.oee == null ? (p.semCalendario ? 'cadastre o horário de funcionamento' : 'sem turnos lançados no mês') : `D ${fmtPct(p.disponibilidade, 0)} · P ${fmtPct(p.performance, 0)} · Q ${fmtPct(p.qualidade, 0)}`}</span>
+      ${mini((oeeMeses || []).map((m) => (m.oee == null ? null : Number(m.oee))))}</a>`;
+  }
+  const n = 4 + (custo ? 1 : 0) + (cardOEE ? 1 : 0);
+  return `<div class="grade-kpi-dash" style="--k:${n}">
+    ${cardOEE}
     ${cartao('Disponibilidade', 'gauge', fmtPct(t.disponibilidade), delta(t.disponibilidade, ant?.availability, { maiorMelhor: true, un: ' p.p.' }),
       t.disponibilidade == null ? (t.semCalendario ? 'cadastre o horário de funcionamento' : 'sem horário programado') : `${h(t.horasParadas)} paradas de ${h(t.horasProgramadas, 0)}`,
       mini(serie('availability'), COR.claro), 'destaque')}
