@@ -256,7 +256,7 @@ function telaNovaSenha() {
 let verificador = null;
 function telaAguardando() {
   const inativo = store.perfil?.status === 'inativo';
-  raiz.innerHTML = `<div class="acesso-form" style="min-height:100vh">
+  raiz.innerHTML = `<div class="acesso-form tela-acesso" style="min-height:100vh">
     ${marcaAcesso()}
     <div class="card acesso-caixa" style="max-width:480px"><div class="card-corpo">
     <h2>${inativo ? 'Acesso desativado' : 'Aguardando liberação'}</h2>
