@@ -1156,3 +1156,48 @@ tr.linha-total td { background: var(--base-50); }
 .lista-sino li.nao-lido { background: #fff8ec; }
 .lista-sino li.nao-lido button > svg { color: var(--acento-500); }
 @media (max-width: 700px) { .painel-avisos { position: fixed; top: 60px; right: 12px; left: 12px; width: auto; } }
+
+/* ---------- Etapa 11: relatórios, indicadores e calendário ---------- */
+.filtros-rel { border-bottom: 0; }
+.grade-ind { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.grade-ind .kpi .detalhe { line-height: 1.35; }
+.grade-ind .kpi.destaque .detalhe.aviso-txt { color: #f3c78a; }
+.selo-ind { display: block; font-size: .72rem; color: var(--aviso); font-weight: 500; }
+.como-calcula summary { padding: 12px 16px; cursor: pointer; font-weight: 600; color: var(--base-700); display: flex; align-items: center; gap: 8px; }
+.como-calcula summary svg { width: 16px; height: 16px; }
+.como-calcula .card-corpo { padding-top: 0; }
+.como-calcula p { margin: 0 0 8px; }
+.cabecalho-secao { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cabecalho-secao h3 { margin: 0; display: flex; align-items: center; gap: 8px; }
+.cabecalho-secao h3 svg { width: 18px; height: 18px; }
+.grafico-meses .b-verde { fill: var(--sucesso); }
+.grafico-meses .b-vermelho { fill: var(--perigo); }
+.grafico-meses .b-laranja { fill: var(--acento-500); }
+.grafico-meses .b-azul { fill: var(--info); }
+.legenda-graf { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--texto-2); margin-top: 6px; }
+.legenda-graf span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda-graf i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legenda-graf .b-verde { background: var(--sucesso); } .legenda-graf .b-laranja { background: var(--acento-500); } .legenda-graf .b-azul { background: var(--info); }
+.semana-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.dia-cal { border: 1px solid var(--borda); border-radius: var(--raio-sm); padding: 8px; display: grid; gap: 6px; align-content: start; font-size: .85rem; }
+.faixa-cal { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; background: var(--sucesso-fundo); color: var(--sucesso); border-radius: 6px; padding: 3px 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.faixa-cal.antiga { background: var(--fundo); color: var(--texto-3); text-decoration: line-through; }
+.faixa-cal small { font-weight: 400; width: 100%; }
+.faixa-cal .btn-xs { margin-left: auto; width: 22px; height: 22px; min-height: 0; padding: 0; }
+.faixa-cal .btn-xs svg { width: 14px; height: 14px; }
+@media (max-width: 900px) { .semana-cal { grid-template-columns: 1fr 1fr; } }
+form > .ajuda { font-size: .78rem; color: var(--texto-3); margin-top: -6px; }
+label.opcao { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-weight: 400; }
+.chip input { margin: 0; }
+.so-impressao { display: none; }
+@media print {
+  .nao-imprimir, .abas, .tabela-busca, .paginacao, .sino-wrap { display: none !important; }
+  .so-impressao { display: block; margin-bottom: 12px; }
+  .so-impressao h2 { margin: 0 0 4px; }
+  .grade-ind { grid-template-columns: repeat(3, 1fr); }
+  .card { box-shadow: none; break-inside: avoid; }
+  .tabela.responsiva td::before { display: none !important; }
+  details.como-calcula:not([open]) { display: none; }
+}
+@media (max-width: 700px) { .filtros.filtros-rel .campo:not([hidden]) { display: flex; } .filtros.filtros-rel .campo[hidden] { display: none; } }
+.filtros-rel .campo[hidden] { display: none !important; }

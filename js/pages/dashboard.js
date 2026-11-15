@@ -1,7 +1,8 @@
-// Dashboard — na Etapa 1 mostra só dados reais da conta.
-// Os indicadores (disponibilidade, MTBF, MTTR, custos) entram na Etapa 11.
-import { store } from '../store.js';
-import { esc, icones } from '../ui.js';
+// Dashboard — só dados reais: indicadores do mês, paradas, OS, preventiva,
+// preditiva, pendências, equipamentos e horímetros.
+import { store, pode } from '../store.js';
+import { esc, icones, fmtNum, fmtPct, fmtMoeda, hojeISO } from '../ui.js';
+import { porEquipamento as indicadoresEquip, somar as somarIndicadores } from '../services/indicadores.js';
 import { MENU } from '../app.js';
 import { listarEquipamentos, STATUS } from '../services/equipamentos.js';
 import { situacao as situacaoHorimetros, SITUACAO } from '../services/horimetros.js';
@@ -25,14 +26,13 @@ export async function render(el) {
         <p>${esc(data.charAt(0).toUpperCase() + data.slice(1))}</p></div>
     </div>
     <div class="secao" id="dash-paradas"></div>
+    <div class="secao" id="dash-ind"></div>
     <div class="secao" id="dash-pend"></div>
     <div class="secao" id="dash-os"></div>
     <div class="secao" id="dash-prev"></div>
     <div class="secao" id="dash-pred"></div>
     <div class="secao" id="dash-equip"></div>
     <div class="secao" id="dash-hm"></div>
-    <div class="alerta info secao"><i data-lucide="info"></i><div>
-      Os indicadores (disponibilidade, MTBF, MTTR e custos) entram na Etapa 11; o cumprimento preventivo já aparece em Planejamento preventivo → Cumprimento, calculados a partir das paradas, horímetros e ordens de serviço registrados.</div></div>
     <div class="grade grade-2 secao">
       <div class="card"><div class="card-titulo"><h3><i data-lucide="user"></i> Sua conta</h3>
         <a class="btn btn-sm" href="#/minha-conta">Abrir</a></div>
@@ -147,6 +147,23 @@ export async function render(el) {
           ${cont.map((x) => `<a class="quadro-status ${x.cl}" href="${x.h}"><span class="n">${x.n}</span><span><i data-lucide="${x.i}"></i> ${esc(x.t)}</span></a>`).join('')}
         </div>`;
     }
+  } catch (e) { console.warn(e); }
+
+  // Indicadores do mês (calculados pelo banco; a conta de cada um está em Relatórios)
+  try {
+    const hoje = hojeISO();
+    const t = somarIndicadores(await indicadoresEquip(`${hoje.slice(0, 8)}01`, hoje));
+    const h = (v, c = 1) => (v == null ? '—' : `${fmtNum(v, c)} h`);
+    const k = (rot, icone, valor, det, cl = '') => `<a class="card kpi ${cl}" href="#/relatorios"><span class="rotulo"><i data-lucide="${icone}"></i> ${esc(rot)}</span>
+      <span class="valor">${valor}</span><span class="detalhe">${det}</span></a>`;
+    el.querySelector('#dash-ind').innerHTML = `<h2><i data-lucide="gauge"></i> Indicadores do mês</h2>
+      <div class="grade-ind">
+        ${k('Disponibilidade', 'gauge', fmtPct(t.disponibilidade), t.disponibilidade == null ? (t.semCalendario ? 'cadastre o horário de funcionamento' : 'sem horário programado') : `${h(t.horasParadas)} paradas de ${h(t.horasProgramadas, 0)}`, 'destaque')}
+        ${k('MTBF', 'timer', h(t.mtbf), t.mtbf == null ? (t.falhas ? 'faltam leituras de horímetro' : 'sem falhas no mês') : `${fmtNum(t.falhas - t.falhasSemHorimetro)} falha(s)${t.mtbfParcial ? ' · parcial' : ''}`)}
+        ${k('MTTR', 'wrench', h(t.mttr, 2), t.mttr == null ? 'sem reparos no mês' : `${t.reparos} reparo${t.reparos === 1 ? '' : 's'}${t.mttrParcial ? ' · parcial' : ''}`)}
+        ${k('Falhas', 'octagon-alert', fmtNum(t.falhas), 'OS corretivas com falha')}
+        ${t.custos && pode('costs.read') ? k('Custo do mês', 'wallet', fmtMoeda(t.custos.total), `mão de obra, peças e serviços`) : ''}
+      </div>`;
   } catch (e) { console.warn(e); }
 
   // Paradas em aberto agora
