@@ -10,6 +10,7 @@ import { badgeStatus } from './equipamentos.js';
 import { daOS as paradasDaOS, fmtDuracao } from '../services/paradas.js';
 import * as pc from '../services/pecas.js';
 import { agendaDaOS } from '../services/preventiva.js';
+import { inspecaoDaOS, TECNICA } from '../services/preditiva.js';
 
 const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const agoraLocal = () => { const d = new Date(); d.setSeconds(0, 0); return paraLocal(d); };
@@ -173,8 +174,9 @@ export function formularioModal({ titulo, campos, botao, classe = 'btn-primario'
 // Abas
 // ---------------------------------------------------------------------
 async function abaDetalhes(corpo, { o }) {
-  const [h, paradas, prev] = await Promise.all([os.historico(o.id), paradasDaOS(o.id).catch(() => []),
-    o.type === 'preventiva' ? agendaDaOS(o.id).catch(() => null) : null]);
+  const [h, paradas, prev, insp] = await Promise.all([os.historico(o.id), paradasDaOS(o.id).catch(() => []),
+    o.type === 'preventiva' ? agendaDaOS(o.id).catch(() => null) : null,
+    o.type === 'preditiva' ? inspecaoDaOS(o.id).catch(() => null) : null]);
   const podeParada = pode('downtime.write') && !paradas.some((p) => p.is_open);
   corpo.innerHTML = `<div class="grade grade-2">
     <div class="grade" style="gap:16px">
@@ -185,6 +187,9 @@ async function abaDetalhes(corpo, { o }) {
       ${prev ? `<div class="alerta info"><i data-lucide="calendar-check"></i><div>Gerada pelo plano preventivo
         <a href="#/preventiva/planos/${prev.plan_id}"><b>${esc(prev.plan_name)}</b></a> (vencimento nº ${prev.sequence}).
         Ao concluir, a próxima preventiva é agendada a partir da data de conclusão.</div></div>` : ''}
+      ${insp ? `<div class="alerta info"><i data-lucide="activity"></i><div>Gerada pela inspeção de
+        <a href="#/preditiva/inspecoes/${insp.id}"><b>${esc(TECNICA[insp.type].nome.toLowerCase())} de ${fmtDataHora(insp.performed_at)}</b></a>.
+        Depois do reparo, registre uma nova inspeção para confirmar que voltou ao normal.</div></div>` : ''}
       ${o.cancel_reason ? `<div class="alerta perigo"><i data-lucide="circle-x"></i><div><b>Cancelada:</b> ${esc(o.cancel_reason)}</div></div>` : ''}
       <div class="card"><div class="card-titulo"><h3><i data-lucide="octagon-pause"></i> Paradas do equipamento ligadas a esta OS</h3>
         ${podeParada ? `<a class="btn btn-sm" href="#/paradas/nova?os=${o.id}"><i data-lucide="plus"></i> Registrar parada</a>` : ''}</div>

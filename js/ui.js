@@ -15,6 +15,8 @@ export function hojeISO() {
 }
 export function fmtData(iso) {
   if (!iso) return '—';
+  // data com hora (timestamp) → dia no fuso do navegador; data pura → como veio
+  if (String(iso).length > 10) return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const [y, m, d] = String(iso).slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 }

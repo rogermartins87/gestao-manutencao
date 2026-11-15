@@ -1093,3 +1093,29 @@ tr.linha-total td { background: var(--base-50); }
 .lista-tarefas { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 .lista-tarefas li { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
 .lista-tarefas li.inativa > span:first-child { color: var(--texto-3); text-decoration: line-through; }
+
+/* ---------- Etapa 9: Preditiva ---------- */
+.perigo-txt { color: var(--perigo); }
+.sucesso-txt { color: var(--sucesso); }
+.lista-medicoes { display: grid; gap: 10px; }
+.medicao { display: grid; grid-template-columns: 1fr auto 110px; gap: 12px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--borda); border-radius: 10px; background: var(--superficie); }
+.medicao-info { display: grid; gap: 2px; min-width: 0; }
+.medicao-valor { display: flex; align-items: center; gap: 6px; }
+.medicao-valor input { width: 110px; font-size: 1.05rem; text-align: right; }
+.medicao-valor .unidade { color: var(--texto-3); font-size: .9rem; min-width: 36px; }
+.medicao-st { min-height: 22px; }
+.avulsa { border-style: dashed; }
+.resumo-insp { display: flex; gap: 10px; align-items: center; min-height: 24px; }
+.grafico-pd .faixa-alerta { fill: var(--aviso-fundo); }
+.grafico-pd .faixa-critico { fill: var(--perigo-fundo); }
+.grafico-pd .lim-alerta { stroke: var(--aviso); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.grafico-pd .lim-critico { stroke: var(--perigo); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.grafico-pd .ponto.st-alerta { stroke: var(--aviso); fill: var(--aviso-fundo); }
+.grafico-pd .ponto.st-critico { stroke: var(--perigo); fill: var(--perigo); }
+@media (max-width: 700px) {
+  .medicao { grid-template-columns: 1fr auto; }
+  .medicao-info { grid-column: 1 / -1; }
+  .medicao-valor input { width: 100%; flex: 1; }
+  .medicao-valor { flex: 1; }
+}

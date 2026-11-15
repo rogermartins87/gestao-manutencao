@@ -15,6 +15,8 @@ import { tabelaParadas } from './paradas.js';
 import { historicoEquipamento as pecasDoEquipamento, fmtQtd } from '../services/pecas.js';
 import { planosDoEquipamento } from '../services/preventiva.js';
 import { tabelaPlanos } from './preventiva.js';
+import { pontosDoEquipamento, inspecoesDoEquipamento } from '../services/preditiva.js';
+import { tabelaPontos, tabelaInspecoes, abrirPonto } from './preditiva.js';
 
 export async function render(el, [id]) {
   const e = await svc.lerEquipamento(id);
@@ -29,6 +31,7 @@ export async function render(el, [id]) {
     { id: 'ordens', titulo: 'Ordens de serviço', icone: 'clipboard-list', fn: abaOrdens },
     { id: 'paradas', titulo: 'Paradas', icone: 'octagon-pause', fn: abaParadas },
     { id: 'preventiva', titulo: 'Preventiva', icone: 'calendar-check', fn: abaPreventiva },
+    { id: 'preditiva', titulo: 'Preditiva', icone: 'activity', fn: abaPreditiva },
     { id: 'pecas', titulo: 'Peças trocadas', icone: 'package', fn: abaPecas },
     ...(pode('audit.read') ? [{ id: 'alteracoes', titulo: 'Alterações', icone: 'file-clock', fn: abaAlteracoes }] : []),
   ];
@@ -253,6 +256,25 @@ async function abaPreventiva(corpo, e) {
       ${podeCriar ? `<a class="btn btn-primario" href="#/preventiva/planos/novo?equipamento=${e.id}"><i data-lucide="plus"></i> Novo plano</a>` : ''}</div>
     <div class="card" id="tab-planos-equip"></div>`;
   tabelaPlanos(corpo.querySelector('#tab-planos-equip'), lista, { semEquipamento: true });
+}
+
+async function abaPreditiva(corpo, e) {
+  const [pontos, insps] = await Promise.all([pontosDoEquipamento(e.id), inspecoesDoEquipamento(e.id)]);
+  const ordem = { critico: 0, alerta: 1, sem_medicao: 2, normal: 3, inativo: 4 };
+  pontos.sort((a, b) => ordem[a.situacao] - ordem[b.situacao] || a.name.localeCompare(b.name, 'pt-BR'));
+  const ativos = pontos.filter((p) => p.active);
+  const ok = e.status !== 'desativado';
+  corpo.innerHTML = `
+    <div class="acoes" style="margin:0 0 12px;justify-content:space-between;align-items:center">
+      <span class="muted">${ativos.length ? `${ativos.length} ponto${ativos.length === 1 ? '' : 's'} de medição` : ''}</span>
+      <span class="acoes">${pode('planning.write') && ok ? '<button class="btn" id="btn-ponto-eq"><i data-lucide="plus"></i> Novo ponto</button>' : ''}
+        ${pode('inspection.write') && ok ? `<a class="btn btn-primario" href="#/preditiva/inspecoes/nova?equipamento=${e.id}"><i data-lucide="clipboard-plus"></i> Registrar inspeção</a>` : ''}</span></div>
+    <div class="card" id="tab-pontos-equip"></div>
+    <h3 class="secao"><i data-lucide="clipboard-check" style="width:18px;height:18px;vertical-align:-3px"></i> Inspeções</h3>
+    <div class="card" id="tab-insp-equip"></div>`;
+  tabelaPontos(corpo.querySelector('#tab-pontos-equip'), pontos, { semEquipamento: true });
+  tabelaInspecoes(corpo.querySelector('#tab-insp-equip'), insps, { semEquipamento: true });
+  corpo.querySelector('#btn-ponto-eq')?.addEventListener('click', () => abrirPonto({ equipamentoId: e.id, depois: () => abaPreditiva(corpo, e).then(icones) }));
 }
 
 async function abaPecas(corpo, e) {

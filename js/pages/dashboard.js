@@ -9,6 +9,7 @@ import { listar as listarOS, STATUS_OS, ENCERRADAS } from '../services/ordens.js
 import { abertas as paradasAbertas } from '../services/paradas.js';
 import { cartoesAbertas } from './paradas.js';
 import { agendaAberta, SITUACAO as SIT_PREV } from '../services/preventiva.js';
+import { pontos as pontosPreditiva, RESULTADO as RES_PRED } from '../services/preditiva.js';
 
 export async function render(el) {
   const agora = new Date();
@@ -25,6 +26,7 @@ export async function render(el) {
     <div class="secao" id="dash-paradas"></div>
     <div class="secao" id="dash-os"></div>
     <div class="secao" id="dash-prev"></div>
+    <div class="secao" id="dash-pred"></div>
     <div class="secao" id="dash-equip"></div>
     <div class="secao" id="dash-hm"></div>
     <div class="alerta info secao"><i data-lucide="info"></i><div>
@@ -106,6 +108,22 @@ export async function render(el) {
           ${cont.map(({ k, cl, n }) => `<a class="quadro-status ${cl}" href="#/preventiva"><span class="n">${n}</span>
             <span><i data-lucide="${SIT_PREV[k].icone}"></i> ${esc(SIT_PREV[k].nome)}</span></a>`).join('')}
           ${semOS.length ? `<a class="quadro-status" href="#/preventiva"><span class="n">${semOS.length}</span><span><i data-lucide="file-plus"></i> Sem OS gerada</span></a>` : ''}
+        </div>`;
+    }
+  } catch (e) { console.warn(e); }
+
+  // Preditiva: pontos em crítico/alerta e rotas atrasadas (do maior para o menor)
+  try {
+    const pts = (await pontosPreditiva()).filter((p) => p.active);
+    if (pts.length) {
+      const cont = [['critico', 'st-parado'], ['alerta', 'st-manutencao'], ['atrasada', 'st-parado']]
+        .map(([k, cl]) => ({ k, cl, n: pts.filter((p) => (k === 'atrasada' ? p.overdue : p.situacao === k)).length })).filter((x) => x.n).sort((a, b) => b.n - a.n);
+      el.querySelector('#dash-pred').innerHTML = `<h2><i data-lucide="activity"></i> Preditiva</h2>
+        <div class="faixa-status">
+          <a class="quadro-status total" href="#/preditiva"><span class="n">${pts.length}</span><span>Pontos ativos</span></a>
+          ${cont.map(({ k, cl, n }) => `<a class="quadro-status ${cl}" href="#/preditiva"><span class="n">${n}</span>
+            <span>${k === 'atrasada' ? '<i data-lucide="calendar-x"></i> Rota atrasada' : `<i data-lucide="${RES_PRED[k].icone}"></i> ${esc(RES_PRED[k].nome)}`}</span></a>`).join('')}
+          ${cont.length ? '' : '<span class="quadro-status st-operando"><span class="n"><i data-lucide="circle-check"></i></span><span>Tudo dentro do limite</span></span>'}
         </div>`;
     }
   } catch (e) { console.warn(e); }
