@@ -115,7 +115,7 @@ function renderLayout() {
   <div class="app${menuRecolhido() ? ' lateral-recolhida' : ''}">
     <aside class="lateral" aria-label="Menu principal">
       <div class="marca">
-        <div class="marca-logo icone-logo"><i data-lucide="wrench"></i></div>
+        <div class="marca-logo icone-logo" role="img" aria-label="Fer Alvarez"></div>
         <div class="marca-texto"><div class="marca-nome">Manutenção</div><div class="marca-prop">${esc(empresa)}</div></div>
         <button type="button" class="btn-recolher" id="btn-recolher" title="Recolher menu" aria-label="Recolher menu"><i data-lucide="panel-left-close"></i></button>
       </div>
@@ -172,7 +172,7 @@ function telaConfiguracao(msg) {
 }
 
 function marcaAcesso() {
-  return `<div class="acesso-marca"><span class="acesso-logo icone-logo" role="img" aria-label="Logo"><i data-lucide="wrench"></i></span><h1>${NOME_SISTEMA}</h1></div>`;
+  return `<div class="acesso-marca"><span class="acesso-logo icone-logo" role="img" aria-label="Fer Alvarez"></span><h1>${NOME_SISTEMA}</h1></div>`;
 }
 
 function telaLogin(modo = 'entrar') {

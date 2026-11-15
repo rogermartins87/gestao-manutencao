@@ -1201,3 +1201,87 @@ label.opcao { display: flex; align-items: center; gap: 8px; padding: 4px 0; font
 }
 @media (max-width: 700px) { .filtros.filtros-rel .campo:not([hidden]) { display: flex; } .filtros.filtros-rel .campo[hidden] { display: none; } }
 .filtros-rel .campo[hidden] { display: none !important; }
+
+/* =====================================================================
+   Identidade Fer Alvarez (cores do post SAE 4140, aprovado em 15/11/2026)
+   ===================================================================== */
+:root {
+  --base-950: #010c1d;
+  --base-900: #021230;
+  --base-800: #0a1f4d;
+  --base-700: #13306b;
+  --base-600: #2a4a8c;
+  --base-50: #eef3fb;
+  --acento-600: #0552c4;
+  --acento-500: #0763e0;
+  --acento-100: #e6efff;
+  --fundo: #eef1f6;
+  --borda: #dde3ec;
+  --borda-forte: #c3ccd9;
+  --info: #0763e0;
+  --info-fundo: #e6efff;
+  --aco: #96979a;
+}
+
+/* Lateral: azul-marinho do post com a diagonal azul royal embaixo */
+.lateral {
+  background: linear-gradient(180deg, #0a1f4d 0%, #021230 45%, #010c1d 100%);
+  position: fixed; overflow: hidden;
+}
+.lateral::after {
+  content: ""; position: absolute; left: -40px; right: -40px; bottom: -60px; height: 140px;
+  background: linear-gradient(90deg, rgba(7,99,224,.0), rgba(7,99,224,.35));
+  transform: skewY(-14deg); pointer-events: none;
+}
+.lateral::before {
+  content: ""; position: absolute; left: -40px; right: -40px; bottom: 70px; height: 3px;
+  background: #0763e0; transform: skewY(-14deg); opacity: .9; pointer-events: none;
+}
+.lateral .marca { border-bottom: 1px solid rgba(255,255,255,.08); }
+.lateral .marca-logo.icone-logo { background: #fff url(../img/favicon.png) center / 80% no-repeat; border-radius: 9px; }
+.marca-logo svg { display: none; }
+.marca-nome { letter-spacing: .02em; }
+.nav-item { position: relative; }
+.nav-item.ativo { background: #0763e0; color: #fff; box-shadow: 0 4px 14px rgba(7,99,224,.35); }
+.nav-item:hover:not(.ativo) { background: rgba(7,99,224,.18); }
+.lateral .rodape-lateral { position: relative; z-index: 1; }
+
+/* Topo branco com o filete azul */
+.topo { border-bottom: 3px solid #0763e0; }
+
+/* Botões e abas no azul royal */
+.btn-primario { background: #0763e0; border-color: #0763e0; }
+.btn-primario:hover { background: #0552c4; border-color: #0552c4; }
+.aba.ativa { color: #0552c4; border-bottom-color: #0763e0; }
+a { color: #0552c4; }
+
+/* Saudação como a faixa do post */
+.boas-vindas { background: linear-gradient(115deg, #021230 0%, #0a1f4d 62%, #0763e0 62.2%, #0763e0 63.4%, #eef1f6 63.6%); color: #fff;
+  border-radius: 12px; padding: 22px 26px; margin-bottom: 18px; }
+.boas-vindas h1 { color: #fff; font-size: 1.6rem; letter-spacing: .01em; text-transform: uppercase; font-weight: 800; }
+.boas-vindas p { color: #c9d6ee; margin: 2px 0; }
+
+/* Títulos de seção com ícone em círculo azul (como os ícones do post) */
+.secao > h2 { display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: .03em; font-size: 1rem; color: #021230; }
+.secao > h2 svg { width: 30px; height: 30px; padding: 6px; border-radius: 50%; background: #0763e0; color: #fff; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #0763e0; }
+
+/* Cartões de número */
+.kpi.destaque { background: linear-gradient(135deg, #0a1f4d, #021230); border-color: #021230; border-left: 5px solid #0763e0; }
+.kpi.destaque .rotulo, .kpi.destaque .detalhe { color: #a9c3f0; }
+.kpi.destaque .rotulo svg { color: #5d9bff; }
+.kpi .rotulo svg { color: #0763e0; }
+.quadro-status.total { background: #021230; color: #fff; border-color: #021230; }
+.quadro-status.total .n { color: #fff; }
+
+/* Tela de entrada: diagonal marinho / claro com a linha azul */
+.tela-acesso { background: linear-gradient(115deg, #021230 0%, #0a1f4d 46%, #0763e0 46.2%, #0763e0 47.2%, #e9ecf1 47.4%); }
+.acesso-form { background: transparent; }
+.acesso-logo.icone-logo { width: 230px; height: 88px; border-radius: 0; background: url(../img/logo-fer-alvarez.png) center / contain no-repeat; }
+.acesso-logo svg { display: none; }
+.acesso-marca { background: #fff; padding: 14px 26px; border-radius: 14px; box-shadow: 0 8px 30px rgba(1,12,29,.25); }
+.acesso-marca h1 { font-size: 1rem; color: #021230; text-transform: uppercase; letter-spacing: .08em; }
+.acesso-caixa .card { border-top: 4px solid #0763e0; box-shadow: 0 12px 40px rgba(1,12,29,.3); }
+@media (max-width: 700px) {
+  .boas-vindas { background: linear-gradient(115deg, #021230 0%, #0a1f4d 84%, #0763e0 84.3%, #0763e0 86%, #eef1f6 86.3%); }
+  .boas-vindas h1 { font-size: 1.35rem; }
+}
