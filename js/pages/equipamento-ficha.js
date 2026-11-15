@@ -82,6 +82,7 @@ function abaDados(corpo, e) {
     <div class="card"><div class="card-titulo"><h3><i data-lucide="cog"></i> Dados técnicos</h3></div><div class="card-corpo"><dl class="dados-conta">
       ${linha('Fabricante', e.manufacturer)}${linha('Modelo', e.model)}${linha('Nº de série', e.serial_number)}
       ${linha('Ano de fabricação', e.manufacture_year)}${linha('Instalado em', e.installed_at ? fmtData(e.installed_at) : '')}
+      ${linha('Potência', e.power_kw != null ? `${Number(e.power_kw).toLocaleString('pt-BR')} kW (${(e.power_kw / 0.7355).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} CV)` : '')}
       ${linha('Horímetro', e.has_hour_meter ? `Sim — alerta após ${e.stale_days_effective} dias sem leitura${e.hour_meter_stale_days ? '' : ' (padrão da empresa)'}` : 'Não possui')}
     </dl></div></div>
   </div>
@@ -347,7 +348,7 @@ const ROTULO = {
   tag: 'TAG', name: 'Nome', category_id: 'Categoria', sector: 'Setor', location: 'Localização', manufacturer: 'Fabricante',
   model: 'Modelo', serial_number: 'Nº de série', manufacture_year: 'Ano de fabricação', installed_at: 'Instalado em',
   criticality: 'Criticidade', status: 'Status', has_hour_meter: 'Possui horímetro', hour_meter_stale_days: 'Dias para alerta de horímetro',
-  plant_id: 'Planta', notes: 'Observações', removed_at: 'Removido em', title: 'Título',
+  plant_id: 'Planta', notes: 'Observações', power_kw: 'Potência (kW)', removed_at: 'Removido em', title: 'Título',
 };
 const OCULTOS = new Set(['updated_at', 'updated_by', 'created_at', 'created_by', 'status_changed_at', 'removed_by', 'id']);
 

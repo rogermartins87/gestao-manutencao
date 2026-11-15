@@ -23,7 +23,7 @@ export const TIPO_DOC = {
 // Campos que a tela pode gravar (status e horímetro ficam de fora: o banco cuida)
 const CAMPOS = ['tag', 'name', 'plant_id', 'category_id', 'sector', 'location', 'manufacturer', 'model', 'serial_number',
   'manufacture_year', 'installed_at', 'criticality', 'has_hour_meter', 'hour_meter_stale_days', 'notes',
-  'oee_enabled', 'production_unit', 'ideal_rate'];
+  'oee_enabled', 'production_unit', 'ideal_rate', 'power_kw'];
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
 export const listarEquipamentos = async () =>

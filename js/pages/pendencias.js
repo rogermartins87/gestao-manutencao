@@ -5,7 +5,7 @@
 import { pode, store, papel } from '../store.js';
 import { esc, icones, toast, traduzirErro, vazio, montarTabela, fmtData, hojeISO, addDias, carregando, erroCarga } from '../ui.js';
 import * as pe from '../services/pendencias.js';
-import { PRIORIDADE, listar as listarOS } from '../services/ordens.js';
+import { PRIORIDADE, listar as listarOS, responsaveis as responsaveisOS, ENCERRADAS } from '../services/ordens.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { equipamentosParaEscolher } from '../plantas.js';
 import { agendaAberta } from '../services/preventiva.js';
@@ -128,9 +128,10 @@ export async function render(el) {
   const f = { minhas: params.get('minhas') === '1', resp: '', busca: '', status: '' };
   el.innerHTML = `
     <div class="cabecalho-pagina"><div><h1>Pendências</h1>
-      <p>Tarefas avulsas com responsável e prazo, e o que está atrasado no sistema.</p></div>
+      <p>${papel() === 'tecnico' ? 'As suas tarefas: as que foram passadas para você e as que você criou.' : 'Tarefas avulsas com responsável e prazo, e o que está atrasado no sistema.'}</p></div>
       <div class="acoes">${pode('pending.write') ? '<button class="btn btn-primario" id="btn-nova-pend"><i data-lucide="plus"></i> Nova pendência</button>' : ''}</div></div>
     <div id="alertas-sis"></div>
+    <div id="equipe-tec"></div>
     <div id="paradas-sem-os"></div>
     <div class="card card-filtros"><div class="card-corpo filtros-equip filtros-pecas">
       <div class="campo busca-campo"><label for="pe-busca">Buscar</label><input id="pe-busca" type="search" placeholder="Título, TAG, OS…"></div>
@@ -143,12 +144,14 @@ export async function render(el) {
   const corpo = el.querySelector('#aba-pend');
   let lista = [];
 
+  const tecnico = papel() === 'tecnico';
+  const veEquipe = ['admin', 'gestor'].includes(papel());
   let semOS = [];
   const podeOS = pode('work_order.manage') || pode('work_order.request');
   const desenharSemOS = () => {
     const box = el.querySelector('#paradas-sem-os');
     // "Só as minhas": aparece para os planejadores, que são os responsáveis
-    if (!semOS.length || (f.minhas && papel() !== 'planejador')) { box.innerHTML = ''; return; }
+    if (!semOS.length || tecnico || (f.minhas && papel() !== 'planejador')) { box.innerHTML = ''; return; }
     const ord = [...semOS].sort((a, b) => (b.is_open - a.is_open) || String(b.started_at).localeCompare(String(a.started_at)));
     box.innerHTML = `<div class="card secao card-sem-os">
       <div class="card-titulo"><h3><i data-lucide="unlink"></i> Paradas sem OS ligada <span class="contador">${semOS.length}</span></h3>
@@ -167,7 +170,7 @@ export async function render(el) {
   };
   paradasSemOS().then((l) => { semOS = l || []; desenharSemOS(); }).catch(() => {});
 
-  alertasSistema().then((al) => {
+  if (!tecnico) alertasSistema().then((al) => {
     el.querySelector('#alertas-sis').innerHTML = al.length ? `<h2 class="secao-titulo"><i data-lucide="bell-ring"></i> Atenção no sistema</h2>
       <div class="faixa-status">${al.map((x) => `<a class="quadro-status ${x.cl}" href="${x.h}"><span class="n">${x.n}</span><span><i data-lucide="${x.i}"></i> ${esc(x.t)}</span></a>`).join('')}</div>` : '';
     icones();
@@ -222,15 +225,60 @@ export async function render(el) {
     try { lista = await pe.listar(); } catch (err) { corpo.innerHTML = erroCarga(err); return; }
     const sel = el.querySelector('#pe-resp');
     const nomes = [...new Map(lista.filter((p) => p.assigned_to).map((p) => [p.assigned_to, p.assigned_to_name])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+    if (veEquipe) {
+      // gestor/admin: o filtro lista toda a equipe técnica, mesmo quem não tem pendência
+      equipe.forEach((u) => { if (!nomes.some(([id]) => id === u.id)) nomes.push([u.id, u.full_name]); });
+      nomes.sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+    }
     sel.innerHTML = `<option value="">Todos</option><option value="-">Sem responsável</option>${nomes.map(([id, n]) => `<option value="${id}" ${f.resp === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}`;
     desenhar();
+    desenharEquipe();
   };
+
+  // ---- Equipe técnica (gestor e administrador): carga de cada responsável ----
+  let equipe = [], osEquipe = [];
+  const desenharEquipe = () => {
+    const box = el.querySelector('#equipe-tec');
+    if (!veEquipe || !equipe.length) { box.innerHTML = ''; return; }
+    const hoje = hojeISO();
+    const linhas = equipe.map((u) => {
+      const minhasOS = osEquipe.filter((o) => o.assigned_to === u.id && !ENCERRADAS.includes(o.status));
+      const pend = lista.filter((p) => p.assigned_to === u.id && pe.ABERTAS.includes(p.status));
+      return { u,
+        andamento: minhasOS.filter((o) => o.status !== 'atendida').length,
+        atrasadas: minhasOS.filter((o) => o.overdue).length,
+        atendidas: minhasOS.filter((o) => o.status === 'atendida').length,
+        pend: pend.length,
+        pendAtr: pend.filter((p) => p.due_date && p.due_date < hoje).length };
+    }).sort((a, b) => (b.andamento + b.pend) - (a.andamento + a.pend) || a.u.full_name.localeCompare(b.u.full_name, 'pt-BR'));
+    const n = (v, cl = '') => `<span class="eq-n ${v ? cl : 'zero'}">${v}</span>`;
+    box.innerHTML = `<div class="card secao card-equipe">
+      <div class="card-titulo"><h3><i data-lucide="users"></i> Equipe técnica <span class="contador">${equipe.length}</span></h3>
+        <span class="muted small">Toque no nome para ver as pendências da pessoa</span></div>
+      <div class="tabela-equipe-caixa"><table class="tabela responsiva tabela-equipe"><thead><tr>
+        <th>Responsável</th><th>OS em andamento</th><th>OS atrasadas</th><th>OS a finalizar</th><th>Pendências abertas</th><th>Pendências atrasadas</th></tr></thead>
+        <tbody>${linhas.map((l) => `<tr class="${f.resp === l.u.id ? 'sel' : ''}">
+          <td class="primaria"><button class="btn-link" data-eq="${l.u.id}"><b>${esc(l.u.full_name)}</b></button><div class="muted small">${esc(l.u.role_name || '')}</div></td>
+          <td data-rotulo="OS em andamento">${n(l.andamento)}</td><td data-rotulo="OS atrasadas">${n(l.atrasadas, 'ruim')}</td>
+          <td data-rotulo="OS a finalizar">${n(l.atendidas, 'roxo')}</td><td data-rotulo="Pendências abertas">${n(l.pend)}</td>
+          <td data-rotulo="Pendências atrasadas">${n(l.pendAtr, 'ruim')}</td></tr>`).join('')}</tbody></table></div></div>`;
+    box.querySelectorAll('[data-eq]').forEach((b) => b.addEventListener('click', () => {
+      f.resp = f.resp === b.dataset.eq ? '' : b.dataset.eq;
+      el.querySelector('#pe-resp').value = f.resp; desenhar(); desenharEquipe();
+      el.querySelector('.abas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    icones();
+  };
+  if (veEquipe) {
+    Promise.all([responsaveisOS().catch(() => []), listarOS().catch(() => [])])
+      .then(([u, o]) => { equipe = u || []; osEquipe = o || []; desenharEquipe(); });
+  }
   const nova = () => abrirPendencia({ depois: carregar });
 
   el.querySelector('#btn-nova-pend')?.addEventListener('click', nova);
   el.querySelector('.abas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; desenhar(); } });
   el.querySelector('#pe-busca').oninput = (ev) => { f.busca = ev.target.value; desenhar(); };
-  el.querySelector('#pe-resp').onchange = (ev) => { f.resp = ev.target.value; desenhar(); };
+  el.querySelector('#pe-resp').onchange = (ev) => { f.resp = ev.target.value; desenhar(); desenharEquipe(); };
   el.querySelector('#pe-minhas').onchange = (ev) => { f.minhas = ev.target.checked; desenhar(); desenharSemOS(); };
   corpo.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-st]');

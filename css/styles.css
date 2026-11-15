@@ -1535,3 +1535,40 @@ body.com-dica-app { padding-bottom: 240px; }
 .ficha-topo.os-atendida { border-left-color: #7c3aed; }
 .alerta.aviso-atendida { background: #f5f0ff; border: 1px solid #d9c8fb; color: #4c1d95; }
 .alerta.aviso-atendida svg { color: #7c3aed; }
+
+/* Campo com unidade ao lado (potência) */
+.campo-unidade { display: flex; gap: 6px; }
+.campo-unidade input { flex: 1; min-width: 0; }
+.campo-unidade select { width: 78px; flex: none; }
+
+/* Demanda de energia (Equipamentos) */
+.card-demanda .card-titulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.grade-demanda { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.dem-planta { border: 1px solid var(--borda); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+.dem-cab { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.dem-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dem-nums .rotulo { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-3, #6b7587); }
+.dem-nums b { font-size: 1.05rem; }
+.dem-nums b.bom { color: #1f8a3b; } .dem-nums b.alerta { color: #b7791f; } .dem-nums b.ruim { color: #d03434; }
+.dem-barra { height: 8px; background: #eef1f5; border-radius: 99px; overflow: hidden; }
+.dem-barra span { display: block; height: 100%; background: #1f8a3b; border-radius: 99px; }
+.dem-barra.alerta span { background: #d99a12; } .dem-barra.ruim span { background: #d03434; }
+
+/* Pendências: equipe técnica (gestor/admin) */
+.card-equipe .card-titulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tabela-equipe-caixa { overflow-x: auto; }
+.tabela-equipe th, .tabela-equipe td { text-align: center; }
+.tabela-equipe th:first-child, .tabela-equipe td:first-child { text-align: left; }
+.tabela-equipe tr.sel td { background: #eef3fd; }
+.btn-link { background: none; border: 0; padding: 0; font: inherit; color: var(--acento-600, #0763e0); cursor: pointer; text-align: left; }
+.btn-link:hover { text-decoration: underline; }
+.eq-n { display: inline-block; min-width: 28px; padding: 2px 8px; border-radius: 99px; font-weight: 700; background: #eef1f5; color: var(--texto, #1f2937); }
+.eq-n.zero { background: transparent; color: var(--texto-3, #9aa3b2); font-weight: 500; }
+.eq-n.ruim { background: #fde8e8; color: #d03434; }
+.eq-n.roxo { background: #f1eafe; color: #6d28d9; }
+
+/* Iluminação */
+.kpi.kpi-perigo .valor { color: var(--perigo); }
+.kpi.kpi-aviso .valor { color: var(--aviso); }
+.campo-largo { grid-column: span 2; }
+@media (max-width: 600px) { .campo-largo { grid-column: auto; } }

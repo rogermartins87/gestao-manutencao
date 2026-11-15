@@ -236,6 +236,7 @@ async function abaPlantas(corpo) {
       { titulo: 'Planta', chave: 'name', primaria: true, render: (p) => `<b>${esc(p.name)}</b>${p.city ? `<div class="muted small">${esc(p.city)}</div>` : ''}` },
       { titulo: 'Código', chave: 'code', render: (p) => (p.code ? `<code>${esc(p.code)}</code>` : '<span class="muted small">—</span>') },
       { titulo: 'Equipamentos', valor: (p) => qtd(p).ativos, render: (p) => `<b>${qtd(p).ativos}</b>${qtd(p).desativados ? ` <span class="muted small">+ ${qtd(p).desativados} desativado${qtd(p).desativados === 1 ? '' : 's'}</span>` : ''}` },
+      { titulo: 'Demanda contratada', valor: (p) => Number(p.contracted_demand_kw ?? -1), render: (p) => (p.contracted_demand_kw != null ? `${Number(p.contracted_demand_kw).toLocaleString('pt-BR')} kW` : '<span class="muted small">—</span>') },
       { titulo: 'Ordem', chave: 'sort_order' },
       { titulo: 'Situação', valor: (p) => (p.active ? 'Ativa' : 'Desativada'), render: (p) => (p.active ? '<span class="badge ativo">Ativa</span>' : '<span class="badge inativo">Desativada</span>') },
       { titulo: 'Ações', classe: 'col-acoes', render: (p) => `<button class="btn btn-sm" data-planta="${p.id}"><i data-lucide="pencil"></i> Editar</button>` },
@@ -265,6 +266,9 @@ function editarPlanta(p, plantas, depois, qtd = () => ({ ativos: 0 })) {
         </div>
         <div class="campo"><label for="pl-cidade">Cidade / endereço</label>
           <input id="pl-cidade" name="cidade" maxlength="80" value="${esc(v.city || '')}" placeholder="Ex.: Divinópolis - MG"></div>
+        <div class="campo"><label for="pl-dem">Demanda contratada (kW)</label>
+          <input id="pl-dem" name="demanda" type="number" min="0" max="10000000" step="0.01" value="${esc(v.contracted_demand_kw ?? '')}" placeholder="Ex.: 1500">
+          <span class="ajuda">Está na conta de energia. Usada para mostrar a folga de potência em Equipamentos.</span></div>
         ${p ? `<label class="check-linha"><input type="checkbox" name="ativa" ${v.active ? 'checked' : ''} ${v.active && comEquip ? 'disabled' : ''}> Planta ativa</label>
           ${v.active && comEquip ? `<div class="muted small">Para desativar, mude ${comEquip === 1 ? 'o equipamento' : `os ${comEquip} equipamentos`} desta planta para outra (ou desative${comEquip === 1 ? '-o' : '-os'}) antes.</div>` : ''}` : ''}
         <div id="msg-planta"></div>
@@ -281,6 +285,7 @@ function editarPlanta(p, plantas, depois, qtd = () => ({ ativos: 0 })) {
       code: textoOuNulo(f.cod.value)?.toUpperCase() ?? null,
       city: textoOuNulo(f.cidade.value),
       sort_order: Number(f.ordem.value || 0),
+      contracted_demand_kw: f.demanda.value === '' ? null : Number(f.demanda.value),
     };
     if (p && f.ativa && !f.ativa.disabled) dados.active = f.ativa.checked;
     try {

@@ -41,6 +41,7 @@ export async function render(el) {
         ${podeCadastrar ? '<a class="btn btn-primario" href="#/equipamentos/novo"><i data-lucide="plus"></i> Novo equipamento</a>' : ''}
       </div></div>
     <div class="faixa-status" id="faixa-status"></div>
+    ${htmlDemanda(equipamentos)}
     <div class="card card-filtros"><div class="card-corpo filtros-equip">
       <div class="campo busca-campo"><label for="f-busca">Buscar</label>
         <input id="f-busca" type="search" placeholder="TAG, nome, fabricante, modelo…" value="${esc(f.busca)}"></div>
@@ -190,4 +191,35 @@ export async function abrirCategorias(aoFechar) {
       mudou = true; desenhar();
     } catch (err) { toast(traduzirErro(err), 'erro'); }
   });
+}
+
+// ---------------------------------------------------------------------
+// Demanda de energia: potência instalada (máquinas não desativadas) × demanda contratada
+// ---------------------------------------------------------------------
+const kw = (n) => `${Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kW`;
+function htmlDemanda(equipamentos) {
+  const ativos = equipamentos.filter((e) => e.status !== 'desativado');
+  if (!ativos.some((e) => e.power_kw != null) && !store.plantas.some((p) => p.contracted_demand_kw != null)) return '';
+  const plantas = (store.planta ? store.plantas.filter((p) => p.id === store.planta) : store.plantas.filter((p) => p.active));
+  const linhas = plantas.map((p) => {
+    const daqui = ativos.filter((e) => e.plant_id === p.id);
+    const inst = daqui.reduce((s, e) => s + Number(e.power_kw || 0), 0);
+    const cont = p.contracted_demand_kw != null ? Number(p.contracted_demand_kw) : null;
+    const pct = cont ? Math.round((inst / cont) * 100) : null;
+    const folga = cont != null ? cont - inst : null;
+    const cl = pct == null ? '' : pct > 100 ? 'ruim' : pct >= 85 ? 'alerta' : 'bom';
+    return `<div class="dem-planta">
+      <div class="dem-cab"><b>${esc(p.name)}</b><span class="muted small">${daqui.filter((e) => e.power_kw != null).length} de ${daqui.length} máquinas com potência</span></div>
+      <div class="dem-nums">
+        <div><span class="rotulo">Instalada</span><b>${kw(inst)}</b></div>
+        <div><span class="rotulo">Contratada</span><b>${cont != null ? kw(cont) : '—'}</b></div>
+        <div><span class="rotulo">${folga != null && folga < 0 ? 'Acima em' : 'Disponível'}</span><b class="${cl}">${folga != null ? kw(Math.abs(folga)) : '—'}</b></div>
+      </div>
+      ${pct != null ? `<div class="dem-barra ${cl}" title="${pct}% da demanda contratada"><span style="width:${Math.min(pct, 100)}%"></span></div><div class="small muted">${pct}% da demanda contratada</div>`
+        : '<div class="small muted">Informe a demanda contratada em Usuários e configurações › Plantas.</div>'}
+    </div>`;
+  });
+  return `<div class="card secao card-demanda"><div class="card-titulo"><h3><i data-lucide="zap"></i> Demanda de energia</h3>
+      <span class="muted small">Soma da potência das máquinas (menos as desativadas)</span></div>
+    <div class="card-corpo grade-demanda">${linhas.join('')}</div></div>`;
 }

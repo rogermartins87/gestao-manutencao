@@ -48,6 +48,10 @@ export async function render(el, [id]) {
         ${campo('serial_number', 'Nº de série', 'maxlength="80"')}
         ${campo('manufacture_year', 'Ano de fabricação', 'min="1900" max="2100" step="1"', 'number')}
         ${campo('installed_at', 'Data de instalação', '', 'date')}
+        <div class="campo"><label for="c-potencia">Potência</label>
+          <div class="campo-unidade"><input id="c-potencia" name="potencia" type="number" min="0" max="100000" step="0.01" value="${v.power_kw ?? ''}" placeholder="Ex.: 75">
+            <select name="potencia_un" aria-label="Unidade da potência"><option value="kW">kW</option><option value="CV">CV</option><option value="HP">HP</option></select></div>
+          <span class="muted small" id="c-potencia-kw"></span></div>
       </div>
       <h3>Horímetro</h3>
       <div class="grade grade-form">
@@ -88,6 +92,14 @@ export async function render(el, [id]) {
     el.querySelector('#c-category_id').innerHTML = opcoes(lista, { valor: 'id', rotulo: 'name', selecionado: atual, vazio: 'Sem categoria' });
   }));
 
+  // mostra quanto dá em kW quando a potência é digitada em CV ou HP
+  const fpot = el.querySelector('form');
+  const mostrarKW = () => {
+    const un = fpot.potencia_un.value, val = fpot.potencia.value;
+    el.querySelector('#c-potencia-kw').textContent = un !== 'kW' && val !== '' ? `= ${potenciaKW(val, un).toLocaleString('pt-BR')} kW` : '';
+  };
+  fpot.potencia.addEventListener('input', mostrarKW); fpot.potencia_un.addEventListener('change', mostrarKW);
+
   el.querySelector('form').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const f = ev.target;
@@ -111,6 +123,7 @@ export async function render(el, [id]) {
       oee_enabled: f.oee_enabled.checked,
       production_unit: textoOuNulo(f.production_unit.value),
       ideal_rate: num(f.ideal_rate.value),
+      power_kw: potenciaKW(f.potencia.value, f.potencia_un.value),
     };
     if (f.plant_id) dados.plant_id = f.plant_id.value;
     try {
@@ -125,4 +138,11 @@ export async function render(el, [id]) {
     }
   });
   icones();
+}
+
+// Potência sempre gravada em kW (1 CV = 0,7355 kW; 1 HP = 0,7457 kW)
+const FATOR_KW = { kW: 1, CV: 0.7355, HP: 0.7457 };
+function potenciaKW(valor, un) {
+  if (valor === '' || valor == null) return null;
+  return Math.round(Number(valor) * (FATOR_KW[un] || 1) * 100) / 100;
 }
