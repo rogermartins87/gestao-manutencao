@@ -1,5 +1,5 @@
 // =====================================================================
-// Ajuda: vídeo de demonstração + passo a passo de cada tela, por perfil.
+// Ajuda: passo a passo de cada tela, por perfil.
 // As imagens (img/ajuda) são do ambiente de teste, com dados de exemplo.
 // =====================================================================
 import { papel } from '../store.js';
@@ -200,18 +200,12 @@ export async function render(el) {
   let grupo = GRUPOS[params.get('aba')] ? params.get('aba') : padrao();
   el.innerHTML = `
     <div class="cabecalho-pagina"><div><h1>Ajuda</h1>
-      <p>Vídeo de demonstração e passo a passo de cada tela. As imagens são de exemplo (ambiente de teste).</p></div></div>
+      <p>Passo a passo de cada tela, por perfil. As imagens são de exemplo (ambiente de teste).</p></div></div>
     <div class="campo tut-busca"><input type="search" id="tut-q" placeholder="Buscar na ajuda: ex. parada, OEE, senha, horímetro…" aria-label="Buscar na ajuda"></div>
     <div class="abas" role="tablist">${Object.entries(GRUPOS).map(([k, v]) => `<button class="aba" data-g="${k}"><i data-lucide="${v.icone}"></i> ${v.nome}</button>`).join('')}</div>
     <div id="tut-lista"></div>`;
   const lista = el.querySelector('#tut-lista');
   const q = el.querySelector('#tut-q');
-
-  const video = `<div class="card tut-video"><div class="card-corpo">
-      <h3><i data-lucide="clapperboard"></i> Vídeo: tour pelo sistema (3 min 40 s)</h3>
-      <video controls preload="none" poster="img/ajuda/capa.jpg" playsinline><source src="img/ajuda/tutorial.mp4" type="video/mp4">
-        Seu navegador não toca o vídeo. <a href="img/ajuda/tutorial.mp4">Baixe aqui</a>.</video>
-      <p class="muted small">Sem som: as explicações aparecem escritas na tela. Toque em tela cheia para ver melhor no celular.</p></div></div>`;
 
   function mostrar() {
     const termo = semAcento(q.value.trim());
@@ -222,7 +216,7 @@ export async function render(el) {
         ? `<p class="muted">${achados.length} resultado(s) para "${esc(q.value.trim())}"</p>${achados.map((tp) => `<div class="tut-grupo-rotulo">${esc(GRUPOS[tp.g].nome)}</div>${cartao(tp)}`).join('')}`
         : `<div class="alerta aviso"><i data-lucide="search-x"></i><div>Nada encontrado para "${esc(q.value.trim())}". Tente outra palavra.</div></div>`;
     } else {
-      lista.innerHTML = (grupo === 'inicio' ? video : '') + TOPICOS.filter((tp) => tp.g === grupo).map(cartao).join('');
+      lista.innerHTML = TOPICOS.filter((tp) => tp.g === grupo).map(cartao).join('');
     }
     icones();
   }
