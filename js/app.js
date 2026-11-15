@@ -4,6 +4,7 @@
 import { sb, configurado, chaveInsegura } from './supabase.js';
 import { store, carregarPerfil, limparSessao, pode, ativo } from './store.js';
 import { esc, icones, toast, traduzirErro, abrirModal, carregando } from './ui.js';
+import { htmlSino, iniciarSino, pararSino } from './sino.js';
 
 const raiz = document.getElementById('raiz');
 const NOME_SISTEMA = 'Gestão de Manutenção';
@@ -19,7 +20,7 @@ export const MENU = [
   { rota: 'preditiva', titulo: 'Manutenção preditiva', icone: 'activity', etapa: 9, pronta: true },
   { rota: 'paradas', titulo: 'Paradas', icone: 'octagon-pause', etapa: 6, pronta: true },
   { rota: 'pecas', titulo: 'Peças e componentes', icone: 'cog', etapa: 7, pronta: true },
-  { rota: 'pendencias', titulo: 'Pendências', icone: 'list-todo', etapa: 10 },
+  { rota: 'pendencias', titulo: 'Pendências', icone: 'list-todo', etapa: 10, pronta: true },
   { rota: 'relatorios', titulo: 'Relatórios', icone: 'file-bar-chart', etapa: 11 },
   { rota: 'usuarios', titulo: 'Usuários e configurações', icone: 'users', etapa: 2, pronta: true, permAlguma: ['users.manage', 'settings.manage', 'audit.read', 'costs.read'] },
 ];
@@ -47,6 +48,8 @@ const ROTAS = [
   { re: /^preditiva\/inspecoes\/nova$/, pagina: () => import('./pages/inspecao-form.js'), titulo: 'Registrar inspeção', perm: 'inspection.write' },
   { re: /^preditiva\/inspecoes\/([0-9a-f-]{36})$/, pagina: () => import('./pages/inspecao-ficha.js'), titulo: 'Inspeção' },
   { re: /^preditiva\/pontos\/([0-9a-f-]{36})$/, pagina: () => import('./pages/ponto-ficha.js'), titulo: 'Ponto de medição' },
+  { re: /^pendencias$/, pagina: () => import('./pages/pendencias.js'), titulo: 'Pendências' },
+  { re: /^pendencias\/([0-9a-f-]{36})$/, pagina: () => import('./pages/pendencia-ficha.js'), titulo: 'Pendência' },
   { re: /^pecas$/, pagina: () => import('./pages/pecas.js'), titulo: 'Peças e componentes' },
   { re: /^pecas\/([0-9a-f-]{36})$/, pagina: () => import('./pages/peca-ficha.js'), titulo: 'Peça' },
   { re: /^usuarios$/, pagina: () => import('./pages/usuarios.js'), titulo: 'Usuários e configurações', permAlguma: ['users.manage', 'settings.manage', 'audit.read', 'costs.read'] },
@@ -119,6 +122,7 @@ function renderLayout() {
         <button class="btn btn-icone btn-texto btn-menu" id="btn-menu" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
         <div class="titulo" id="titulo-pagina"></div>
         <div class="usuario-menu">
+          ${htmlSino()}
           <a class="avatar" href="#/minha-conta" title="Minha conta: ${esc(nome)}" style="text-decoration:none">${esc(iniciaisDe(nome) || '?')}</a>
           <a class="nome small" href="#/minha-conta" style="color:inherit;text-decoration:none">${esc(nome)}</a>
           <button class="btn btn-icone btn-texto" id="btn-sair" title="Sair" aria-label="Sair"><i data-lucide="log-out"></i></button>
@@ -146,7 +150,8 @@ function renderLayout() {
   marcarRecolher();
   document.getElementById('btn-menu').onclick = () => (window.innerWidth > 960 ? btnRecolher.click() : document.querySelector('.app').classList.add('menu-aberto'));
   document.querySelector('[data-fechar-menu]').onclick = () => document.querySelector('.app').classList.remove('menu-aberto');
-  document.getElementById('btn-sair').onclick = async () => { await sb.auth.signOut(); };
+  document.getElementById('btn-sair').onclick = async () => { pararSino(); await sb.auth.signOut(); };
+  iniciarSino();
 }
 
 // ---------- Telas sem sessão ----------

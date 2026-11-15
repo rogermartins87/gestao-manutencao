@@ -10,6 +10,7 @@ import { abertas as paradasAbertas } from '../services/paradas.js';
 import { cartoesAbertas } from './paradas.js';
 import { agendaAberta, SITUACAO as SIT_PREV } from '../services/preventiva.js';
 import { pontos as pontosPreditiva, RESULTADO as RES_PRED } from '../services/preditiva.js';
+import { listar as listarPendencias, ABERTAS as PEND_ABERTAS } from '../services/pendencias.js';
 
 export async function render(el) {
   const agora = new Date();
@@ -24,6 +25,7 @@ export async function render(el) {
         <p>${esc(data.charAt(0).toUpperCase() + data.slice(1))}</p></div>
     </div>
     <div class="secao" id="dash-paradas"></div>
+    <div class="secao" id="dash-pend"></div>
     <div class="secao" id="dash-os"></div>
     <div class="secao" id="dash-prev"></div>
     <div class="secao" id="dash-pred"></div>
@@ -124,6 +126,25 @@ export async function render(el) {
           ${cont.map(({ k, cl, n }) => `<a class="quadro-status ${cl}" href="#/preditiva"><span class="n">${n}</span>
             <span>${k === 'atrasada' ? '<i data-lucide="calendar-x"></i> Rota atrasada' : `<i data-lucide="${RES_PRED[k].icone}"></i> ${esc(RES_PRED[k].nome)}`}</span></a>`).join('')}
           ${cont.length ? '' : '<span class="quadro-status st-operando"><span class="n"><i data-lucide="circle-check"></i></span><span>Tudo dentro do limite</span></span>'}
+        </div>`;
+    }
+  } catch (e) { console.warn(e); }
+
+  // Pendências: minhas e atrasadas
+  try {
+    const ps = (await listarPendencias()).filter((p) => PEND_ABERTAS.includes(p.status));
+    if (ps.length) {
+      const eu = store.perfil?.id;
+      const minhas = ps.filter((p) => p.assigned_to === eu);
+      const cont = [
+        { n: minhas.length, t: 'Comigo', i: 'user-check', h: '#/pendencias?minhas=1', cl: 'st-manutencao' },
+        { n: minhas.filter((p) => p.overdue).length, t: 'Minhas atrasadas', i: 'calendar-x', h: '#/pendencias?minhas=1', cl: 'st-parado' },
+        { n: ps.filter((p) => p.overdue).length, t: 'Atrasadas (todas)', i: 'calendar-x', h: '#/pendencias?aba=lista', cl: 'st-parado' },
+      ].filter((x) => x.n).sort((a, b) => b.n - a.n);
+      el.querySelector('#dash-pend').innerHTML = `<h2><i data-lucide="list-todo"></i> Pendências</h2>
+        <div class="faixa-status">
+          <a class="quadro-status total" href="#/pendencias"><span class="n">${ps.length}</span><span>Em aberto</span></a>
+          ${cont.map((x) => `<a class="quadro-status ${x.cl}" href="${x.h}"><span class="n">${x.n}</span><span><i data-lucide="${x.i}"></i> ${esc(x.t)}</span></a>`).join('')}
         </div>`;
     }
   } catch (e) { console.warn(e); }
