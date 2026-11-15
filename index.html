@@ -68,7 +68,7 @@
       setTimeout(function () { seguir(null); }, 5000); // internet lenta: não trava a abertura
       fetch('versao.json?t=' + Date.now(), { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (v) { seguir(v && v.arquivos); })
+        .then(function (v) { window.VERSAO_SITE = v && v.gerado_em; seguir(v && v.arquivos); })
         .catch(function () { seguir(null); });
     })();
   </script>

@@ -69,6 +69,23 @@ const ROTAS = [
 
 export function navegar(rota) { location.hash = `#/${rota}`; }
 
+// ---------- Versão nova publicada ----------
+// O app salvo no celular fica aberto por dias. Se saiu versão nova, recarrega
+// a página (senão mistura arquivo velho com novo e dá erro).
+async function versaoMudou() {
+  if (!window.VERSAO_SITE) return false;
+  try {
+    const v = await fetch(`versao.json?t=${Date.now()}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null));
+    return !!(v && v.gerado_em && v.gerado_em !== window.VERSAO_SITE);
+  } catch { return false; }
+}
+let ultimaChecagem = Date.now();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || Date.now() - ultimaChecagem < 60000) return;
+  ultimaChecagem = Date.now();
+  if (await versaoMudou()) location.reload();
+});
+
 async function rotear() {
   // endereço com caracteres de HTML (<, >, aspas) é descartado: protege contra link malicioso
   let bruto = location.hash;
@@ -101,6 +118,8 @@ async function rotear() {
     await mod.render(conteudo, params, { caminho, item });
   } catch (e) {
     console.error(e);
+    // arquivo de versão antiga na memória do aparelho: recarrega com a versão nova
+    if (await versaoMudou()) { location.reload(); return; }
     conteudo.innerHTML = `<div class="alerta perigo"><i data-lucide="alert-triangle"></i><div>${esc(traduzirErro(e))}</div></div>`;
   }
   icones();
