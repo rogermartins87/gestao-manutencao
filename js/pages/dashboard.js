@@ -36,8 +36,8 @@ export async function render(el) {
       <div><h1>${saudacao}${primeiroNome ? `, ${esc(primeiroNome)}` : ''}!</h1>
         <p>${esc(store.empresa?.company_name || '')}${textoPlanta() ? ` · ${esc(textoPlanta())}` : ''}</p>
         <p>${esc(data.charAt(0).toUpperCase() + data.slice(1))}</p></div>
-      ${pode('downtime.write') ? `<div class="atalhos-dash"><a class="btn atalho-parada" href="#/paradas/nova"><i data-lucide="octagon-pause"></i> Registrar parada</a></div>` : ''}
     </div>
+    ${atalhosDash()}
     <div id="dash-corpo">${carregando('Montando o painel…')}</div>`;
 
   const hoje = hojeISO();
@@ -226,4 +226,12 @@ function htmlParadas(ab) {
   if (!ab) return '';
   return caixa('circle-pause', `Paradas em aberto${ab.length ? ` (${ab.length})` : ''}`,
     ab.length ? cartoesAbertas([...ab].sort((a, b) => Number(b.duration_hours) - Number(a.duration_hours))) : semDados('Nenhum equipamento parado agora.'), lnk('#/paradas', 'Ver paradas'));
+}
+
+// Atalhos do dashboard (abaixo da faixa de boas-vindas)
+function atalhosDash() {
+  const botoes = [];
+  if (pode('downtime.write')) botoes.push('<a class="btn atalho-parada" href="#/paradas/nova"><i data-lucide="octagon-pause"></i> Registrar parada</a>');
+  if (pode('work_order.manage') || pode('work_order.request')) botoes.push('<a class="btn atalho-os" href="#/ordens/nova"><i data-lucide="clipboard-plus"></i> Nova OS</a>');
+  return botoes.length ? `<div class="atalhos-dash">${botoes.join('')}</div>` : '';
 }

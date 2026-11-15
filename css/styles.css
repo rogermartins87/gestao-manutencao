@@ -1256,7 +1256,7 @@ label.opcao { display: flex; align-items: center; gap: 8px; padding: 4px 0; font
 a { color: #0552c4; }
 
 /* Saudação como a faixa do post */
-.boas-vindas { background: linear-gradient(115deg, #021230 0%, #0a1f4d 62%, #0763e0 62.2%, #0763e0 63.4%, #eef1f6 63.6%); color: #fff;
+.boas-vindas { background: linear-gradient(115deg, #021230 0%, #0a1f4d 100%); color: #fff;
   border-radius: 12px; padding: 22px 26px; margin-bottom: 18px; }
 .boas-vindas h1 { color: #fff; font-size: 1.6rem; letter-spacing: .01em; text-transform: uppercase; font-weight: 800; }
 .boas-vindas p { color: #c9d6ee; margin: 2px 0; }
@@ -1283,7 +1283,6 @@ html:has(.tela-acesso), body:has(.tela-acesso) { background: #021230; } /* topo 
 .acesso-marca h1 { font-size: .95rem; color: rgba(255,255,255,.82); text-transform: uppercase; letter-spacing: .14em; font-weight: 600; }
 .acesso-caixa .card { border-top: 4px solid #0763e0; box-shadow: 0 12px 40px rgba(1,12,29,.3); }
 @media (max-width: 700px) {
-  .boas-vindas { background: linear-gradient(115deg, #021230 0%, #0a1f4d 84%, #0763e0 84.3%, #0763e0 86%, #eef1f6 86.3%); }
   .boas-vindas h1 { font-size: 1.35rem; }
 }
 
@@ -1476,13 +1475,18 @@ body.com-dica-app { padding-bottom: 240px; }
 .caixa-dash .rosca-dash + .os-chips { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borda); }
 
 /* Atalho no dashboard: registrar parada */
-.atalhos-dash { position: relative; z-index: 1; display: flex; gap: 10px; margin-left: auto; }
+.atalhos-dash { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 18px; }
+.atalhos-dash .btn { justify-content: center; min-width: 210px; }
+.atalho-os { background: #0763e0; border-color: #0763e0; color: #fff; font-weight: 700; padding: 12px 20px; font-size: .98rem; box-shadow: 0 6px 18px rgba(7, 99, 224, .25); }
+.atalho-os:hover { background: #0552bd; border-color: #0552bd; color: #fff; }
+.atalho-os svg { width: 20px; height: 20px; }
 .atalho-parada { background: #d63b3b; border-color: #d63b3b; color: #fff; font-weight: 700; padding: 12px 20px; font-size: .98rem; box-shadow: 0 6px 18px rgba(214, 59, 59, .28); }
 .atalho-parada:hover { background: #bf2f2f; border-color: #bf2f2f; color: #fff; }
 .atalho-parada svg { width: 20px; height: 20px; }
 @media (max-width: 720px) {
-  .atalhos-dash { width: 100%; margin-left: 0; }
-  .atalho-parada { flex: 1; justify-content: center; }
+  .atalhos-dash { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .atalhos-dash .btn { min-width: 0; padding: 12px 10px; font-size: .92rem; }
+  .atalhos-dash .btn:only-child { grid-column: 1 / -1; }
 }
 
 /* Registrar parada: bloco "Criar nova OS" */
