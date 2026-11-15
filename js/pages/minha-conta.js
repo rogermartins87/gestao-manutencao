@@ -79,7 +79,7 @@ export async function render(el) {
 // ---------------------------------------------------------------------
 async function montarAvisos(box) {
   const plantas = plantasAtivas();
-  const explica = '<p class="muted small">Quando alguém registrar uma <b>parada de equipamento</b>, este aparelho recebe um aviso na hora (mesmo com o sistema fechado). Quem registrou a parada não recebe.</p>';
+  const explica = '<p class="muted small">Este aparelho recebe um aviso na hora (mesmo com o sistema fechado) quando alguém <b>registrar uma parada de equipamento</b> e quando uma <b>OS for atribuída a você</b>. Quem fez a ação não recebe o próprio aviso.</p>';
   if (ehIphone() && !comoApp()) {
     box.innerHTML = `${explica}
       <div class="aviso-iphone"><i data-lucide="smartphone"></i><div><b>No iPhone, primeiro salve o sistema como app:</b>
@@ -97,7 +97,7 @@ async function montarAvisos(box) {
   const todas = !atual || atual.plant_ids == null;
   const marcadas = new Set(atual?.plant_ids || []);
   const escolha = plantas.length > 1 ? `
-      <fieldset class="avisos-plantas"><legend>Receber avisos de</legend>
+      <fieldset class="avisos-plantas"><legend>Receber avisos de parada de</legend>
         <label class="check"><input type="checkbox" id="av-todas" ${todas ? 'checked' : ''}> Todas as plantas</label>
         <div id="av-lista" ${todas ? 'hidden' : ''}>
           ${plantas.map((pl) => `<label class="check"><input type="checkbox" name="av-planta" value="${pl.id}" ${marcadas.has(pl.id) ? 'checked' : ''}> ${esc(pl.name)}</label>`).join('')}
