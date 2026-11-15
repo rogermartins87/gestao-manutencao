@@ -1375,3 +1375,60 @@ html:has(.tela-acesso), body:has(.tela-acesso) { background: #021230; } /* topo 
   .tut-corpo { grid-template-columns: 1fr; }
   .tut-img { border-right: 0; border-bottom: 1px solid var(--borda, #e3e8f0); }
 }
+
+/* ---------- Dashboard: cartões de indicadores no modelo da Karen (15/11/2026) ---------- */
+.grade-kpi2 { display: grid; gap: 14px; grid-template-columns: repeat(var(--k, 5), minmax(0, 1fr)); margin-top: 16px; }
+.kpi2 { display: flex; align-items: center; gap: 14px; padding: 16px 18px; color: inherit; text-decoration: none; min-width: 0; transition: box-shadow .15s, transform .15s; }
+.kpi2:hover { box-shadow: 0 6px 20px rgba(2,18,48,.10); transform: translateY(-1px); }
+.kpi2-ic { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.kpi2-ic svg { width: 26px; height: 26px; }
+.kpi2.c-azul .kpi2-ic { background: #e8f0fd; color: #0763e0; }
+.kpi2.c-royal .kpi2-ic { background: #021230; color: #fff; }
+.kpi2.c-vermelho .kpi2-ic { background: #fdecec; color: #d63b3b; }
+.kpi2.c-ambar .kpi2-ic { background: #fff4dc; color: #d99a12; }
+.kpi2-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpi2-rot { font-size: .88rem; font-weight: 600; color: var(--texto-1, #1f2937); }
+.kpi2-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kpi2-v { font-size: 1.6rem; font-weight: 800; color: #0b1730; letter-spacing: -.01em; white-space: nowrap; }
+.kpi2-nota { font-size: .74rem; color: var(--texto-3); }
+.selo-var { font-size: .76rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.selo-var.bom { background: #e3f6e8; color: #1f8a3b; }
+.selo-var.ruim { background: #fde8e8; color: #d03434; }
+.selo-var.neutro { background: #eef1f5; color: #6b7587; }
+
+/* linha Equipamentos | Ordens de Serviço | Top 5 */
+.dash-grade.dash-3 { grid-template-columns: 1.2fr 1fr 1.1fr; }
+.dash-3 .rosca-dash { flex-wrap: nowrap; gap: 18px; } .dash-3 .rosca-dash .legenda-dash { flex: 1; min-width: 0; }
+.grade-kpi2.k5, .grade-kpi2.k6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.os-blocos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 6px; }
+.os-bloco { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border-radius: 12px; text-decoration: none; color: #0b1730; min-height: 128px; justify-content: flex-end; }
+.os-bloco svg { width: 26px; height: 26px; margin-bottom: auto; }
+.os-bloco b { font-size: 1.75rem; font-weight: 800; line-height: 1.1; }
+.os-bloco span { font-size: .92rem; line-height: 1.25; }
+.os-bloco.azul { background: #e5eefc; } .os-bloco.azul svg { color: #0763e0; }
+.os-bloco.ambar { background: #fdf1dc; } .os-bloco.ambar svg { color: #d99a12; }
+.os-bloco.verde { background: #e2f5e8; } .os-bloco.verde svg { color: #1f8a3b; }
+.os-bloco:hover { filter: brightness(.97); }
+.top5 { list-style: none; margin: 4px 0 0; padding: 0; }
+.top5 li + li { border-top: 1px solid var(--borda); }
+.top5 a { display: grid; grid-template-columns: 26px minmax(0, 1.4fr) minmax(50px, 1fr) 28px; align-items: center; gap: 12px; padding: 7px 0; color: inherit; text-decoration: none; }
+.top5-n { width: 24px; height: 24px; border-radius: 50%; background: #eef1f5; display: grid; place-items: center; font-size: .78rem; font-weight: 600; color: #4b5565; }
+.top5-nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top5-barra { height: 10px; background: transparent; border-radius: 999px; }
+.top5-barra span { display: block; height: 100%; border-radius: 999px; background: #2f5fb3; }
+.top5 b { text-align: right; }
+.top5-rodape { margin: 8px 0 0; }
+@media (max-width: 1200px) {
+  .grade-kpi2, .grade-kpi2.k5, .grade-kpi2.k6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-grade.dash-3 { grid-template-columns: 1fr 1fr; }
+  .dash-grade.dash-3 > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  .grade-kpi2, .grade-kpi2.k5, .grade-kpi2.k6 { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi2.c-ambar { grid-column: 1 / -1; }
+  .kpi2 { padding: 12px; gap: 10px; }
+  .kpi2-ic { width: 40px; height: 40px; } .kpi2-ic svg { width: 20px; height: 20px; }
+  .kpi2-v { font-size: 1.25rem; }
+  .dash-grade.dash-3 { grid-template-columns: 1fr; }
+  .os-bloco { min-height: 104px; padding: 12px; }
+}
