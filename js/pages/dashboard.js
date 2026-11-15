@@ -165,17 +165,36 @@ function htmlEquipamentos(eqs) {
     : semDados('Nenhum equipamento cadastrado.'), lnk('#/equipamentos', 'Ver todos'));
 }
 
+// Etapas das OS abertas (do pedido até a execução)
+const ETAPAS_OS = [
+  { k: 'aprovar', nome: 'A aprovar', cor: '#94a3b8', st: ['aberta'], href: '#/ordens?situacao=aberta' },
+  { k: 'programada', nome: 'Programadas', cor: '#0763e0', st: ['aprovada', 'planejada'], href: '#/ordens?situacao=aprovada' },
+  { k: 'execucao', nome: 'Em execução', cor: '#1f8a3b', st: ['em_execucao'], href: '#/ordens?situacao=em_execucao' },
+  { k: 'espera', nome: 'Em espera', dica: 'Aguardando peças ou terceiros', cor: '#d99a12', st: ['aguardando_pecas', 'aguardando_terceiros'], href: '#/ordens?situacao=aguardando_pecas' },
+];
+function resumoOS(os) {
+  const abertas = os.filter((o) => !ENCERRADAS.includes(o.status));
+  const eu = store.perfil?.id;
+  return {
+    abertas,
+    etapas: ETAPAS_OS.map((e) => ({ ...e, n: abertas.filter((o) => e.st.includes(o.status)).length })),
+    atrasadas: abertas.filter((o) => o.overdue).length,
+    comigo: abertas.filter((o) => o.assigned_to === eu).length,
+  };
+}
+const chipsOS = (r) => `<div class="os-chips">
+    <a class="os-chip ${r.atrasadas ? 'ruim' : ''}" href="#/ordens?situacao=atrasadas"><i data-lucide="clock-alert"></i><b>${fmtNum(r.atrasadas)}</b> atrasada${r.atrasadas === 1 ? '' : 's'}</a>
+    <a class="os-chip ${r.comigo ? 'meu' : ''}" href="#/ordens?minhas=1"><i data-lucide="user"></i><b>${fmtNum(r.comigo)}</b> comigo</a></div>`;
+
+// Rosca com o total no meio (igual ao quadro Equipamentos) + atrasadas e comigo embaixo
 function htmlOSResumo(os) {
   if (!os) return '';
-  const ands = os.filter((o) => !ENCERRADAS.includes(o.status));
-  const eu = store.perfil?.id;
-  const bloco = (cl, icone, n, rot, href) => `<a class="os-bloco ${cl}" href="${href}"><i data-lucide="${icone}"></i><b>${fmtNum(n)}</b><span>${esc(rot)}</span></a>`;
-  return caixa('clipboard-list', 'Ordens de Serviço', `<div class="os-blocos">
-      ${bloco('azul', 'play', ands.length, 'Em andamento', '#/ordens')}
-      ${bloco('ambar', 'user', ands.filter((o) => o.assigned_to === eu).length, 'Comigo', '#/ordens?minhas=1')}
-      ${bloco('verde', 'circle-check', ands.filter((o) => o.status === 'aprovada').length, 'Aprovada', '#/ordens?situacao=aprovada')}
-    </div>`, lnk('#/ordens', 'Ver todas'));
+  const r = resumoOS(os);
+  return caixa('clipboard-list', 'Ordens de Serviço', `
+    <div class="rosca-dash">${rosca(r.etapas, { sub: 'Abertas', tam: 128 })}${legenda(r.etapas.map((e) => ({ nome: e.nome, n: fmtNum(e.n), cor: e.cor, href: e.href })))}</div>
+    ${chipsOS(r)}`, lnk('#/ordens', 'Ver todas'));
 }
+
 
 // Equipamentos com mais ordens de serviço abertas nos últimos 90 dias (canceladas não contam)
 function htmlTop5(os) {
