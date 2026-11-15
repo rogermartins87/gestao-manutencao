@@ -1474,3 +1474,37 @@ body.com-dica-app { padding-bottom: 240px; }
 .os-chip.meu { background: #fdf1dc; color: #8a5a00; } .os-chip.meu b { color: #8a5a00; }
 .os-chip:hover { filter: brightness(.97); }
 .caixa-dash .rosca-dash + .os-chips { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borda); }
+
+/* Atalho no dashboard: registrar parada */
+.atalhos-dash { position: relative; z-index: 1; display: flex; gap: 10px; margin-left: auto; }
+.atalho-parada { background: #d63b3b; border-color: #d63b3b; color: #fff; font-weight: 700; padding: 12px 20px; font-size: .98rem; box-shadow: 0 6px 18px rgba(214, 59, 59, .28); }
+.atalho-parada:hover { background: #bf2f2f; border-color: #bf2f2f; color: #fff; }
+.atalho-parada svg { width: 20px; height: 20px; }
+@media (max-width: 720px) {
+  .atalhos-dash { width: 100%; margin-left: 0; }
+  .atalho-parada { flex: 1; justify-content: center; }
+}
+
+/* Registrar parada: bloco "Criar nova OS" */
+.bloco-nova-os { border: 1px solid #c9dafb; background: #f4f8ff; border-radius: 12px; padding: 14px 18px 18px; margin: 0; display: grid; gap: 14px; }
+.bloco-nova-os > legend { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #0552c4; padding: 0 6px; }
+.bloco-nova-os > legend svg { width: 18px; height: 18px; }
+
+/* Avisos no celular (Minha conta) */
+.avisos-situacao { display:flex; align-items:center; gap:8px; margin:12px 0; padding:10px 12px; border-radius:10px; background:var(--fundo-suave, #f3f4f6); }
+.avisos-situacao.ligado { background:#e8f6ee; color:#14653a; }
+.avisos-situacao svg { width:18px; height:18px; flex:none; }
+.avisos-plantas { border:1px solid var(--borda, #e5e7eb); border-radius:10px; padding:10px 14px; margin:0 0 12px; }
+.avisos-plantas legend { font-weight:600; padding:0 6px; }
+.avisos-plantas .check { display:flex; align-items:center; gap:8px; padding:6px 0; }
+#av-lista { padding-left:22px; }
+.acoes-avisos { display:flex; gap:8px; flex-wrap:wrap; }
+.aviso-iphone { display:flex; gap:12px; margin-top:12px; padding:12px 14px; border-radius:10px; background:#fff7e6; border:1px solid #f5d48a; }
+.aviso-iphone > svg { width:22px; height:22px; flex:none; color:#a36a00; }
+.aviso-iphone ol { margin:8px 0 6px 18px; padding:0; }
+.aviso-iphone ol svg { width:14px; height:14px; vertical-align:-2px; }
+@media (max-width: 640px) { .acoes-avisos .btn { flex:1 1 100%; justify-content:center; } }
+.dica-bloqueio { margin:0 0 12px; padding:10px 12px; border:1px solid var(--borda); border-radius:10px; }
+.dica-bloqueio summary { cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px; }
+.dica-bloqueio summary svg { width:16px; height:16px; }
+.dica-bloqueio p { margin:8px 0 0; }

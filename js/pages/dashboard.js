@@ -36,6 +36,7 @@ export async function render(el) {
       <div><h1>${saudacao}${primeiroNome ? `, ${esc(primeiroNome)}` : ''}!</h1>
         <p>${esc(store.empresa?.company_name || '')}${textoPlanta() ? ` · ${esc(textoPlanta())}` : ''}</p>
         <p>${esc(data.charAt(0).toUpperCase() + data.slice(1))}</p></div>
+      ${pode('downtime.write') ? `<div class="atalhos-dash"><a class="btn atalho-parada" href="#/paradas/nova"><i data-lucide="octagon-pause"></i> Registrar parada</a></div>` : ''}
     </div>
     <div id="dash-corpo">${carregando('Montando o painel…')}</div>`;
 
