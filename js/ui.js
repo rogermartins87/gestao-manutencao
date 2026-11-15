@@ -75,6 +75,8 @@ export const numOuNulo = (v) => {
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 };
+// Identificador vindo do endereço (?equipamento=…): só aceita UUID — nada de texto montando HTML
+export const idDaUrl = (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '') ? v : null);
 export const textoOuNulo = (v) => (v == null || String(v).trim() === '' ? null : String(v).trim());
 
 export function toast(msg, tipo = 'sucesso', ms = 4500) {

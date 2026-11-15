@@ -6,7 +6,7 @@
 import { pode } from '../store.js';
 import {
   esc, icones, toast, traduzirErro, carregando, erroCarga, vazio, montarTabela, baixarCSV, confirmar,
-  fmtData, fmtDataHora, fmtNum, fmtMoeda, fmtPct, hojeISO, addDias, rotuloMes, opcoes,
+  fmtData, fmtDataHora, fmtNum, fmtMoeda, fmtPct, hojeISO, addDias, rotuloMes, opcoes, idDaUrl,
 } from '../ui.js';
 import * as ind from '../services/indicadores.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
@@ -485,7 +485,7 @@ async function abaCalendario(corpo) {
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   let aba = ABAS[params.get('aba')] ? params.get('aba') : 'indicadores';
-  if (params.get('equipamento')) filtro.eq = params.get('equipamento');
+  if (idDaUrl(params.get('equipamento'))) filtro.eq = idDaUrl(params.get('equipamento'));
   equipamentos = (await listarEquipamentos()).sort((a, b) => a.tag.localeCompare(b.tag, 'pt-BR', { numeric: true }));
   el.innerHTML = `
     <div class="cabecalho-pagina nao-imprimir"><div><h1>Relatórios</h1>

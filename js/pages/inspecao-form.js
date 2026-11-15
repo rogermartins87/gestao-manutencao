@@ -3,7 +3,7 @@
 // escolhe o equipamento e a técnica, preenche o valor de cada ponto
 // (a cor aparece na hora) e, se precisar, medições avulsas.
 // =====================================================================
-import { esc, icones, toast, traduzirErro, numOuNulo } from '../ui.js';
+import { esc, icones, toast, traduzirErro, numOuNulo, idDaUrl } from '../ui.js';
 import * as pd from '../services/preditiva.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { agoraLocal, localParaISO } from '../services/horimetros.js';
@@ -12,7 +12,7 @@ import { badgeResultado } from './preditiva.js';
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   const equipamentos = (await listarEquipamentos()).filter((e) => e.status !== 'desativado');
-  const voltar = params.get('equipamento') ? `#/equipamentos/${params.get('equipamento')}?aba=preditiva` : '#/preditiva';
+  const voltar = idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=preditiva` : '#/preditiva';
   let pontos = [];
   let avulsas = 0;
 
@@ -24,7 +24,7 @@ export async function render(el) {
       <div class="grade grade-form">
         <div class="campo"><label for="in-eq">Equipamento *</label><select id="in-eq" name="equip" required>
           <option value="">Selecione…</option>
-          ${equipamentos.map((e) => `<option value="${e.id}" ${e.id === params.get('equipamento') ? 'selected' : ''}>${esc(e.tag)} — ${esc(e.name)}</option>`).join('')}</select></div>
+          ${equipamentos.map((e) => `<option value="${e.id}" ${e.id === idDaUrl(params.get('equipamento')) ? 'selected' : ''}>${esc(e.tag)} — ${esc(e.name)}</option>`).join('')}</select></div>
         <div class="campo"><label for="in-tec">Técnica *</label><select id="in-tec" name="tec" required>
           ${Object.entries(pd.TECNICA).map(([k, t]) => `<option value="${k}" ${params.get('tecnica') === k ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}</select></div>
         <div class="campo"><label for="in-quando">Data e hora *</label><input id="in-quando" name="quando" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>

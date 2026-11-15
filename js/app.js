@@ -64,6 +64,13 @@ const ROTAS = [
 export function navegar(rota) { location.hash = `#/${rota}`; }
 
 async function rotear() {
+  // endereço com caracteres de HTML (<, >, aspas) é descartado: protege contra link malicioso
+  let bruto = location.hash;
+  try { bruto = decodeURIComponent(bruto); } catch { bruto = '<'; }
+  if (/[<>"'`]/.test(bruto)) {
+    const limpo = location.hash.replace(/^#\/?/, '').split('?')[0].replace(/[^A-Za-z0-9/_-]/g, '');
+    history.replaceState(null, '', `${location.pathname}${location.search}#/${limpo}`);
+  }
   const caminho = location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard';
   const rota = ROTAS.find((r) => r.re.test(caminho));
   const conteudo = document.getElementById('conteudo');

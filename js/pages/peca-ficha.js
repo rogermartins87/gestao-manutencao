@@ -86,7 +86,7 @@ export async function render(el, [id]) {
     if (k === 'ativo') {
       const desativar = p.active;
       if (await confirmar({ titulo: desativar ? 'Desativar peça' : 'Reativar peça',
-        mensagem: desativar ? `A peça ${p.code} deixa de aparecer para novos lançamentos. O histórico de usos continua.` : `A peça ${p.code} volta a aparecer para novos lançamentos.`,
+        mensagem: desativar ? `A peça <b>${esc(p.code)}</b> deixa de aparecer para novos lançamentos. O histórico de usos continua.` : `A peça <b>${esc(p.code)}</b> volta a aparecer para novos lançamentos.`,
         botao: desativar ? 'Desativar' : 'Reativar', perigo: desativar })) {
         try { await pc.salvar(p.id, { active: !desativar }); toast(desativar ? 'Peça desativada.' : 'Peça reativada.'); recarregar(); } catch (err) { toast(traduzirErro(err), 'erro'); }
       }

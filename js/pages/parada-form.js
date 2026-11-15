@@ -1,7 +1,7 @@
 // =====================================================================
 // Registrar parada (em aberto agora, ou já encerrada lançada depois).
 // =====================================================================
-import { esc, icones, toast, traduzirErro, textoOuNulo } from '../ui.js';
+import { esc, icones, toast, traduzirErro, textoOuNulo, idDaUrl } from '../ui.js';
 import * as pr from '../services/paradas.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { listarDoEquipamento as osDoEquipamento, ler as lerOS } from '../services/ordens.js';
@@ -11,9 +11,9 @@ const agoraLocal = () => { const d = new Date(); d.setSeconds(0, 0); return para
 
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
-  const osParam = params.get('os');
+  const osParam = idDaUrl(params.get('os'));
   const [equipamentos, motivos, osOrigem] = await Promise.all([listarEquipamentos(), pr.motivos(), osParam ? lerOS(osParam) : null]);
-  const eqInicial = osOrigem?.equipment_id || params.get('equipamento') || '';
+  const eqInicial = osOrigem?.equipment_id || idDaUrl(params.get('equipamento')) || '';
   const ativos = equipamentos.filter((e) => e.status !== 'desativado');
   const voltar = osOrigem ? `#/ordens/${osOrigem.id}` : eqInicial ? `#/equipamentos/${eqInicial}?aba=paradas` : '#/paradas';
 

@@ -2,7 +2,7 @@
 // Novo / editar plano preventivo.
 // O 1º vencimento só é informado na criação; depois a agenda segue sozinha.
 // =====================================================================
-import { esc, icones, traduzirErro, toast, numOuNulo, fmtNum, hojeISO, addDias } from '../ui.js';
+import { esc, icones, traduzirErro, toast, numOuNulo, fmtNum, hojeISO, addDias, idDaUrl } from '../ui.js';
 import * as pv from '../services/preventiva.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { responsaveis, PRIORIDADE } from '../services/ordens.js';
@@ -13,9 +13,9 @@ export async function render(el, [id]) {
     id ? pv.lerPlano(id) : null, listarEquipamentos(), responsaveis().catch(() => []),
   ]);
   if (id && !p) { el.innerHTML = '<div class="alerta aviso">Plano não encontrado. <a href="#/preventiva?aba=planos">Voltar</a></div>'; return; }
-  const v = p || { trigger: 'calendario', tolerance_days: 3, tolerance_hours: 0, priority: 'media', equipment_id: params.get('equipamento') || '' };
+  const v = p || { trigger: 'calendario', tolerance_days: 3, tolerance_hours: 0, priority: 'media', equipment_id: idDaUrl(params.get('equipamento')) || '' };
   const ativos = equipamentos.filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
-  const voltar = id ? `#/preventiva/planos/${id}` : params.get('equipamento') ? `#/equipamentos/${params.get('equipamento')}?aba=preventiva` : '#/preventiva?aba=planos';
+  const voltar = id ? `#/preventiva/planos/${id}` : idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=preventiva` : '#/preventiva?aba=planos';
   const num = (x) => (x == null ? '' : String(Number(x)).replace('.', ','));
 
   el.innerHTML = `

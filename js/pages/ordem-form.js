@@ -4,7 +4,7 @@
 // Status, início e conclusão NÃO são editados aqui (botões da OS).
 // =====================================================================
 import { pode } from '../store.js';
-import { esc, icones, toast, traduzirErro, textoOuNulo } from '../ui.js';
+import { esc, icones, toast, traduzirErro, textoOuNulo, idDaUrl } from '../ui.js';
 import * as os from '../services/ordens.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 
@@ -26,11 +26,11 @@ export async function render(el, [id]) {
     el.innerHTML = `<div class="alerta aviso">A OS ${esc(o.number)} está encerrada e não pode mais ser alterada. <a href="#/ordens/${o.id}">Voltar</a></div>`; return;
   }
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
-  const v = o || { type: 'corretiva', priority: 'media', is_failure: null, equipment_id: params.get('equipamento') || '' };
+  const v = o || { type: 'corretiva', priority: 'media', is_failure: null, equipment_id: idDaUrl(params.get('equipamento')) || '' };
   const equipTravado = id && !['aberta', 'aprovada'].includes(o.status);
   const ativos = equipamentos.filter((e) => e.status !== 'desativado' || e.id === v.equipment_id);
   const tipos = gestor ? Object.entries(os.TIPO_OS) : [['corretiva', 'Corretiva']];
-  const voltar = id ? `#/ordens/${id}` : (params.get('equipamento') ? `#/equipamentos/${params.get('equipamento')}?aba=ordens` : '#/ordens');
+  const voltar = id ? `#/ordens/${id}` : (idDaUrl(params.get('equipamento')) ? `#/equipamentos/${idDaUrl(params.get('equipamento'))}?aba=ordens` : '#/ordens');
 
   el.innerHTML = `
     <a class="voltar" href="${voltar}"><i data-lucide="arrow-left"></i> Voltar</a>
