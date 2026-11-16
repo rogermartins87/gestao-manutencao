@@ -160,14 +160,14 @@ export function erroCarga(e) {
   return `<div class="alerta perigo"><i data-lucide="alert-triangle"></i><div><b>Não foi possível carregar os dados.</b><br>${esc(traduzirErro(e))}</div></div>`;
 }
 
-export function montarTabela(container, { colunas, linhas, porPagina = 25, aoClicar, busca = true, vazioHtml, idLinha = (l) => l.id, semTotal = false }) {
-  let pagina = 1, termo = '', ordem = null, dir = 1;
+export function montarTabela(container, { colunas, linhas, porPagina = 25, aoClicar, busca = true, vazioHtml, idLinha = (l) => l.id, semTotal = false, ordem: ordemIni = null, dir: dirIni = 1, aoOrdenar }) {
+  let pagina = 1, termo = '', ordem = ordemIni, dir = dirIni;
   const valor = (c, l) => (c.valor ? c.valor(l) : l[c.chave]);
   container.innerHTML = `
     ${busca ? `<div class="tabela-busca"><div class="busca-wrap"><i data-lucide="search"></i>
       <input type="search" placeholder="Buscar nesta tabela…" aria-label="Buscar na tabela"></div></div>` : ''}
     <div class="tabela-wrap"><table class="tabela responsiva"><thead><tr>
-      ${colunas.map((c, i) => `<th class="ordenavel ${c.classe || ''}" data-i="${i}">${esc(c.titulo)}</th>`).join('')}
+      ${colunas.map((c, i) => `<th class="ordenavel ${c.classe || ''}" data-i="${i}" title="Clique para ordenar">${esc(c.titulo)}<span class="seta" aria-hidden="true"></span></th>`).join('')}
     </tr></thead><tbody></tbody></table></div>
     <div class="paginacao"></div>`;
   const tbody = container.querySelector('tbody');
@@ -193,6 +193,11 @@ export function montarTabela(container, { colunas, linhas, porPagina = 25, aoCli
   }
 
   function desenhar() {
+    container.querySelectorAll('thead th').forEach((th, i) => {
+      th.classList.toggle('ord-asc', ordem === i && dir === 1);
+      th.classList.toggle('ord-desc', ordem === i && dir === -1);
+      if (ordem === i) th.setAttribute('aria-sort', dir === 1 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort');
+    });
     const r = filtradas();
     const total = r.length;
     const paginas = Math.max(1, Math.ceil(total / porPagina));
@@ -218,6 +223,7 @@ export function montarTabela(container, { colunas, linhas, porPagina = 25, aoCli
     const th = e.target.closest('th'); if (!th) return;
     const i = Number(th.dataset.i);
     if (ordem === i) dir = -dir; else { ordem = i; dir = 1; }
+    aoOrdenar?.(ordem, dir);
     desenhar();
   });
   pag.addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { pagina += Number(b.dataset.p); desenhar(); } });

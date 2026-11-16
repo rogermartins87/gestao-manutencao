@@ -251,6 +251,7 @@ export async function render(el) {
       corpo.querySelector('#pe-st').onchange = (ev) => { f.status = ev.target.value; desenhar(); };
       montarTabela(corpo.querySelector('#tab-pend'), {
         linhas: r.filter((p) => !f.status || p.status === f.status), busca: false, porPagina: 50,
+        ordem: f.ordem ?? null, dir: f.dir ?? 1, aoOrdenar: (o, d) => { f.ordem = o; f.dir = d; },
         aoClicar: (id) => { location.hash = `#/pendencias/${id}`; },
         colunas: [
           { titulo: 'Pendência', valor: (p) => p.title, primaria: true, render: (p) => `<div><b>${esc(p.title)}</b>${p.equipment_tag || p.work_order_number ? `<div class="small muted">${[p.equipment_tag, p.work_order_number].filter(Boolean).map(esc).join(' · ')}</div>` : ''}</div>` },

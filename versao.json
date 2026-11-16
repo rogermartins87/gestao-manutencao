@@ -1,7 +1,7 @@
 {
-  "gerado_em": "2026-11-16T20:27:11",
+  "gerado_em": "2026-11-16T20:31:38",
   "arquivos": {
-    "css/styles.css": "22a53154c1",
+    "css/styles.css": "5e118dee1d",
     "js/app.js": "8426cc0867",
     "js/avisos.js": "fc6dc0990f",
     "js/config.js": "cb4bf7533a",
@@ -29,7 +29,7 @@
     "js/pages/peca-ficha.js": "8d259a90d7",
     "js/pages/pecas.js": "f98012b69f",
     "js/pages/pendencia-ficha.js": "19cbcfa5c8",
-    "js/pages/pendencias.js": "b17d33be6c",
+    "js/pages/pendencias.js": "64c1b7ff10",
     "js/pages/plano-ficha.js": "210ea7cf99",
     "js/pages/plano-form.js": "0900676614",
     "js/pages/ponto-ficha.js": "3b93a8b5ba",
@@ -56,6 +56,6 @@
     "js/sino.js": "1bb7c282f9",
     "js/store.js": "cac512e826",
     "js/supabase.js": "0555ca9616",
-    "js/ui.js": "721d908349"
+    "js/ui.js": "75a6938590"
   }
 }

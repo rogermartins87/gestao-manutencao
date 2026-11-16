@@ -213,6 +213,11 @@ fieldset.etapa-form legend { font-weight: 700; color: var(--base-900); font-size
 table.tabela { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .tabela th { text-align: left; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-2); font-weight: 600; padding: 10px 14px; background: #fafbf8; border-bottom: 1px solid var(--borda); white-space: nowrap; }
 .tabela th.ordenavel { cursor: pointer; user-select: none; }
+.tabela th.ordenavel .seta::after { content: '↕'; margin-left: 5px; opacity: .35; font-size: .95em; }
+.tabela th.ordenavel:hover .seta::after { opacity: .7; }
+.tabela th.ord-asc, .tabela th.ord-desc { color: var(--texto); }
+.tabela th.ord-asc .seta::after { content: '↑'; opacity: 1; color: #0763e0; }
+.tabela th.ord-desc .seta::after { content: '↓'; opacity: 1; color: #0763e0; }
 .tabela td { padding: 11px 14px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
 .tabela tr.clicavel { cursor: pointer; }
 .tabela tr.clicavel:hover td { background: var(--base-50); }
@@ -1679,3 +1684,4 @@ body.com-dica-app { padding-bottom: 240px; }
   .filtros-pend .busca-campo { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .kanban-col { max-height: none; overflow: visible; } }
+#pe-st { width: auto; min-width: 220px; max-width: 100%; }
