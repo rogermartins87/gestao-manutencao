@@ -1580,18 +1580,23 @@ body.com-dica-app { padding-bottom: 240px; }
 .prog-kpis:empty { display: none; }
 .prog-kpis .kpi { padding: 10px 14px; gap: 2px; }
 /* faixa da semana: cabeçalho grudado na tabela */
-.semana-nav { border-radius: var(--raio) var(--raio) 0 0; border-bottom: 0; box-shadow: none; background: #eef3fb; }
-.semana-nav .card-corpo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; flex-wrap: wrap; }
-.semana-titulo { display: flex; align-items: baseline; gap: 8px; min-width: 0; padding: 0 4px; }
-.semana-titulo b { font-size: 1rem; }
-.semana-nav #sem-hoje { margin-left: auto; }
+.semana-nav { border-radius: var(--raio) var(--raio) 0 0; border: 0; box-shadow: none; background: var(--base-800); color: #fff; }
+.semana-nav .card-corpo { position: relative; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 12px 16px; }
+.semana-nav .btn-icone { width: 42px; height: 42px; border-radius: 50%; background: #fff; color: var(--base-800); border: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+.semana-nav .btn-icone:hover { background: #0763e0; color: #fff; }
+.semana-nav .btn-icone svg { width: 22px; height: 22px; }
+.semana-titulo { display: flex; flex-direction: column; align-items: center; min-width: 260px; text-align: center; }
+.semana-titulo b { font-size: 1.2rem; letter-spacing: .01em; }
+.semana-titulo span { color: #b9c8e6 !important; font-size: .8rem; }
+.semana-nav #sem-hoje { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, .14); color: #fff; border-radius: 999px; padding: 6px 14px; }
+.semana-nav #sem-hoje:hover { background: rgba(255, 255, 255, .26); }
 .semana-nav + #prog-corpo > .prog-quadro { border-top-left-radius: 0; border-top-right-radius: 0; }
 @media (max-width: 760px) {
   .prog-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .semana-nav .card-corpo { display: grid; grid-template-columns: auto 1fr auto; }
-  .semana-titulo { flex-direction: column; align-items: center; gap: 0; text-align: center; }
-  .semana-titulo b { font-size: .95rem; }
-  .semana-nav #sem-hoje { grid-column: 1 / -1; margin: 0 auto; }
+  .semana-nav .card-corpo { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; }
+  .semana-titulo { min-width: 0; }
+  .semana-titulo b { font-size: 1.05rem; }
+  .semana-nav #sem-hoje { position: static; transform: none; grid-column: 1 / -1; justify-self: center; }
 }
 .prog-quadro { overflow-x: auto; }
 .prog-linha { display: grid; grid-template-columns: 190px repeat(var(--dias), minmax(150px, 1fr)); border-bottom: 1px solid var(--borda); min-width: calc(190px + var(--dias) * 150px); }
