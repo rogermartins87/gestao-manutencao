@@ -18,6 +18,8 @@ import { planosDoEquipamento } from '../services/preventiva.js';
 import { tabelaPlanos } from './preventiva.js';
 import { pontosDoEquipamento, inspecoesDoEquipamento } from '../services/preditiva.js';
 import { tabelaPontos, tabelaInspecoes, abrirPonto } from './preditiva.js';
+import { doEquipamento as pendenciasDoEquipamento, ESPECIALIDADE, ABERTAS } from '../services/pendencias.js';
+import { badgePend, badgePri, prazo, abrirPendencia } from './pendencias.js';
 
 export async function render(el, [id]) {
   const e = await svc.lerEquipamento(id);
@@ -30,6 +32,7 @@ export async function render(el, [id]) {
     { id: 'documentos', titulo: `Documentos${e.documents_count ? ` (${e.documents_count})` : ''}`, icone: 'paperclip', fn: abaDocumentos },
     { id: 'horimetro', titulo: 'Horímetro', icone: 'gauge', fn: abaHorimetro },
     { id: 'ordens', titulo: 'Ordens de serviço', icone: 'clipboard-list', fn: abaOrdens },
+    { id: 'pendencias', titulo: 'Pendências', icone: 'list-todo', fn: abaPendencias },
     { id: 'paradas', titulo: 'Paradas', icone: 'octagon-pause', fn: abaParadas },
     { id: 'preventiva', titulo: 'Preventiva', icone: 'calendar-check', fn: abaPreventiva },
     { id: 'preditiva', titulo: 'Preditiva', icone: 'activity', fn: abaPreditiva },
@@ -231,6 +234,37 @@ async function abaOrdens(corpo, e) {
     <div class="card" id="tab-os-equip"></div>`;
   if (lista.length) tabelaOS(corpo.querySelector('#tab-os-equip'), lista, { semEquipamento: true });
   else corpo.querySelector('#tab-os-equip').innerHTML = `<div class="card-corpo">${vazio({ icone: 'clipboard-list', titulo: 'Nenhuma ordem de serviço para este equipamento' })}</div>`;
+}
+
+async function abaPendencias(corpo, e) {
+  const lista = await pendenciasDoEquipamento(e.id);
+  const ordemPri = { urgente: 0, alta: 1, media: 2, baixa: 3 };
+  const abertas = lista.filter((p) => ABERTAS.includes(p.status));
+  // abertas primeiro (atrasadas, depois por prioridade e prazo); concluídas/canceladas no fim, mais recentes antes
+  const ordenada = [...abertas.sort((a, b) => (b.overdue - a.overdue) || (ordemPri[a.priority] - ordemPri[b.priority]) || String(a.due_date || '9').localeCompare(String(b.due_date || '9'))),
+    ...lista.filter((p) => !ABERTAS.includes(p.status)).sort((a, b) => String(b.done_at || b.updated_at).localeCompare(String(a.done_at || a.updated_at)))];
+  const podeCriar = pode('pending.write') && e.status !== 'desativado';
+  corpo.innerHTML = `
+    <div class="acoes" style="margin:0 0 12px;justify-content:space-between;align-items:center">
+      <span class="muted">${lista.length ? `${abertas.length} em aberto · ${lista.length - abertas.length} encerrada${lista.length - abertas.length === 1 ? '' : 's'}` : ''}</span>
+      ${podeCriar ? '<button class="btn btn-primario" id="btn-pend-eq"><i data-lucide="plus"></i> Nova pendência</button>' : ''}</div>
+    <div class="card" id="tab-pend-equip"></div>`;
+  corpo.querySelector('#btn-pend-eq')?.addEventListener('click', () => abrirPendencia({ equipamentoId: e.id, depois: () => abaPendencias(corpo, e).then(icones) }));
+  const alvo = corpo.querySelector('#tab-pend-equip');
+  if (!lista.length) { alvo.innerHTML = `<div class="card-corpo">${vazio({ icone: 'list-todo', titulo: 'Nenhuma pendência para este equipamento' })}</div>`; return; }
+  montarTabela(alvo, {
+    linhas: ordenada, busca: false, porPagina: 50,
+    aoClicar: (id) => { location.hash = `#/pendencias/${id}`; },
+    colunas: [
+      { titulo: 'Pendência', valor: (p) => p.title, primaria: true, render: (p) => `<b>${esc(p.title)}</b>` },
+      { titulo: 'Situação', valor: (p) => p.status, render: (p) => badgePend(p.status) },
+      { titulo: 'Prioridade', valor: (p) => ordemPri[p.priority], render: (p) => badgePri(p.priority) },
+      { titulo: 'Especialidade', valor: (p) => ESPECIALIDADE[p.specialty]?.nome || '', render: (p) => esc(ESPECIALIDADE[p.specialty]?.nome || '—') },
+      { titulo: 'Programação', valor: (p) => p.next_schedule_date || '9999', render: (p) => (p.next_schedule_date && ABERTAS.includes(p.status) ? `<span class="small nowrap">${fmtData(p.next_schedule_date).slice(0, 5)} · ${esc(p.next_schedule_staff)}</span>` : '<span class="muted small">—</span>') },
+      { titulo: 'Prazo', valor: (p) => p.due_date || '9999', classe: 'num', render: prazo },
+      { titulo: 'Responsável', valor: (p) => p.assigned_to_name || '', render: (p) => esc(p.assigned_to_name || '—') },
+    ],
+  });
 }
 
 async function abaParadas(corpo, e) {

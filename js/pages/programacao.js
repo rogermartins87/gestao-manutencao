@@ -33,7 +33,8 @@ export async function render(el) {
         ${gestor ? '<button class="btn" id="btn-colab"><i data-lucide="users"></i> Colaboradores</button>' : ''}
         ${gestor ? '<button class="btn btn-primario" id="btn-programar"><i data-lucide="calendar-plus"></i> Programar atividade</button>' : ''}
       </div></div>
-    <div class="card semana-nav"><div class="card-corpo">
+    <div id="prog-kpis" class="grade prog-kpis"></div>
+    <div class="card semana-nav secao"><div class="card-corpo">
       <button class="btn btn-icone" id="sem-ant" aria-label="Semana anterior"><i data-lucide="chevron-left"></i></button>
       <div class="semana-titulo"><b id="sem-txt"></b><span class="small muted" id="sem-sub"></span></div>
       <button class="btn btn-icone" id="sem-prox" aria-label="Próxima semana"><i data-lucide="chevron-right"></i></button>
@@ -42,6 +43,7 @@ export async function render(el) {
     <div id="prog-corpo">${carregando()}</div>`;
 
   const corpo = el.querySelector('#prog-corpo');
+  const kpis = el.querySelector('#prog-kpis');
   let colabs = [], itens = [];
 
   const carregar = async () => {
@@ -49,9 +51,10 @@ export async function render(el) {
     history.replaceState(null, '', `${location.pathname}${location.search}#/programacao?semana=${semana}`);
     el.querySelector('#sem-txt').textContent = `Semana de ${fmtData(semana).slice(0, 5)} a ${fmtData(addDias(semana, 4))}`;
     el.querySelector('#sem-sub').textContent = semana === segundaDe(hojeISO()) ? 'esta semana' : '';
+    el.querySelector('#sem-hoje').style.display = semana === segundaDe(hojeISO()) ? 'none' : '';
     try {
       [colabs, itens] = await Promise.all([pg.colaboradores(), pg.daSemana(semana, fim)]);
-    } catch (err) { corpo.innerHTML = erroCarga(err); icones(); return; }
+    } catch (err) { kpis.innerHTML = ''; corpo.innerHTML = erroCarga(err); icones(); return; }
     desenhar();
   };
 
@@ -64,6 +67,7 @@ export async function render(el) {
     const linhas = colabs.filter((c) => c.active || itens.some((i) => i.staff_id === c.id))
       .sort((a, b) => (b.profile_id === eu) - (a.profile_id === eu));
     if (!colabs.length) {
+      kpis.innerHTML = '';
       corpo.innerHTML = `<div class="card">${vazio({ icone: 'users', titulo: 'Nenhum colaborador cadastrado',
         texto: gestor ? 'Cadastre os mecânicos e eletricistas da manutenção. Não precisam ter conta no sistema.' : 'Quem programa ainda não cadastrou a equipe.',
         acao: gestor ? '<button class="btn btn-primario" data-colab><i data-lucide="user-plus"></i> Cadastrar colaboradores</button>' : '' })}</div>`;
@@ -89,14 +93,13 @@ export async function render(el) {
         <i data-lucide="${s.icone}"></i><span class="ativ-txt">${esc(i.title)}${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <b>${esc(i.equipment_tag)}</b>` : ''}</span></button>`;
     };
 
-    corpo.innerHTML = `
-      <div class="grade grade-kpi prog-kpis">
+    kpis.innerHTML = `
         <div class="card kpi"><span class="rotulo"><i data-lucide="calendar-range"></i>Programadas</span><span class="valor">${tot.total}</span><span class="detalhe">${linhas.length} colaborador${linhas.length === 1 ? '' : 'es'}</span></div>
         <div class="card kpi"><span class="rotulo"><i data-lucide="circle-check"></i>Feitas</span><span class="valor">${tot.feitas}</span><span class="detalhe">${tot.nao} não feita${tot.nao === 1 ? '' : 's'}</span></div>
         <div class="card kpi ${tot.atras ? 'kpi-aviso' : ''}"><span class="rotulo"><i data-lucide="clock"></i>Sem resultado</span><span class="valor">${tot.atras}</span><span class="detalhe">dias que já passaram</span></div>
-        <div class="card kpi"><span class="rotulo"><i data-lucide="gauge"></i>Eficiência da semana</span><span class="valor">${tot.ef == null ? '—' : `${tot.ef}%`}</span><span class="detalhe">feitas ÷ programadas até agora</span></div>
-      </div>
-      <div class="card secao prog-quadro" style="--dias:${dias.length}">
+        <div class="card kpi"><span class="rotulo"><i data-lucide="gauge"></i>Eficiência da semana</span><span class="valor">${tot.ef == null ? '—' : `${tot.ef}%`}</span><span class="detalhe">feitas ÷ programadas até agora</span></div>`;
+    corpo.innerHTML = `
+      <div class="card prog-quadro" style="--dias:${dias.length}">
         <div class="prog-linha prog-cab"><div class="prog-pessoa">Colaborador</div>
           ${dias.map((d) => `<div class="prog-dia ${d === hoje ? 'hoje' : ''}">${diaCurto(d)}</div>`).join('')}</div>
         ${linhas.map((c) => {

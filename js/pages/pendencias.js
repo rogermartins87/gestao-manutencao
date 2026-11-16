@@ -18,7 +18,7 @@ export const podeAlterar = (p) => pode('pending.write')
   && (p.created_by === store.perfil?.id || p.assigned_to === store.perfil?.id || pode('work_order.approve'));
 
 export const badgePend = (s) => `<span class="badge ${pe.STATUS_PEND[s].classe}">${esc(pe.STATUS_PEND[s].nome)}</span>`;
-const badgePri = (k) => `<span class="badge ${PRIORIDADE[k].classe}">${esc(PRIORIDADE[k].nome)}</span>`;
+export const badgePri = (k) => `<span class="badge ${PRIORIDADE[k].classe}">${esc(PRIORIDADE[k].nome)}</span>`;
 
 export function prazo(p) {
   if (!p.due_date) return '<span class="muted small">sem prazo</span>';
