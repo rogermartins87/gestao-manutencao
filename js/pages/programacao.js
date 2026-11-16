@@ -9,6 +9,8 @@ import * as pg from '../services/programacao.js';
 import * as pe from '../services/pendencias.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
 import { equipamentosParaEscolher } from '../plantas.js';
+import { excecoes } from '../services/indicadores.js';
+import { imprimirFichas } from './ficha-semanal.js';
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const dataDe = (iso) => new Date(`${iso}T12:00:00`);
@@ -27,6 +29,7 @@ export async function render(el) {
     <div class="cabecalho-pagina"><div><h1>Programação semanal</h1>
       <p>O que cada colaborador da manutenção faz em cada dia. Marque o resultado de cada atividade: feita ou não feita (com o motivo).</p></div>
       <div class="acoes">
+        <button class="btn" id="btn-imprimir"><i data-lucide="printer"></i> Imprimir fichas</button>
         ${gestor ? '<button class="btn" id="btn-colab"><i data-lucide="users"></i> Colaboradores</button>' : ''}
         ${gestor ? '<button class="btn btn-primario" id="btn-programar"><i data-lucide="calendar-plus"></i> Programar atividade</button>' : ''}
       </div></div>
@@ -123,6 +126,7 @@ export async function render(el) {
   el.querySelector('#sem-prox').onclick = () => mover(1);
   el.querySelector('#sem-hoje').onclick = () => { semana = segundaDe(hojeISO()); corpo.innerHTML = carregando(); carregar(); };
   el.querySelector('#btn-programar')?.addEventListener('click', () => abrirProgramar({ colabs, dia: semana < hojeISO() && addDias(semana, 6) >= hojeISO() ? hojeISO() : semana, itens, depois: carregar }));
+  el.querySelector('#btn-imprimir').addEventListener('click', () => escolherFichas({ semana, colabs, itens }));
   const abrirColabs = () => gerenciarColaboradores({ colabs, depois: carregar });
   el.querySelector('#btn-colab')?.addEventListener('click', abrirColabs);
   corpo.addEventListener('click', (ev) => {
@@ -364,4 +368,41 @@ async function gerenciarColaboradores({ colabs, depois }) {
   const obs = new MutationObserver(() => { if (!document.body.contains(fundo)) { obs.disconnect(); depois?.(); } });
   obs.observe(document.body, { childList: true });
   desenhar();
+}
+
+// ---------------------------------------------------------------------
+// Imprimir as fichas semanais (modelo da planilha), uma por colaborador
+// ---------------------------------------------------------------------
+async function escolherFichas({ semana, colabs, itens }) {
+  const dias = Array.from({ length: 5 }, (_, k) => addDias(semana, k));
+  // feriados: dias sem operação na usina toda, cadastrados no calendário de funcionamento
+  const exc = await excecoes(semana).catch(() => []);
+  const feriadoDe = (d) => exc.find((x) => x.date === d && !x.equipment_id && !x.start_time);
+  const lista = colabs.filter((c) => c.active || itens.some((i) => i.staff_id === c.id));
+  const n = (c) => itens.filter((i) => i.staff_id === c.id).length;
+  const { el, fechar } = abrirModal({
+    titulo: 'Imprimir fichas da semana',
+    html: `<form id="f-fichas" class="grade" style="gap:14px">
+      <p class="muted" style="margin:0">Semana de ${fmtData(semana).slice(0, 5)} a ${fmtData(dias[4])}. Sai uma folha A4 por colaborador, no modelo da ficha semanal individual.
+        Para guardar em PDF, escolha <b>Salvar como PDF</b> no lugar da impressora.</p>
+      <div class="campo"><label>Colaboradores</label>
+        <div class="lista-escolha">${lista.map((c) => `<label class="escolha"><input type="checkbox" name="col" value="${c.id}" ${n(c) ? 'checked' : ''}>
+          <span><b>${esc(c.name)}</b> <span class="small muted">${esc(c.job_title || '')} · ${n(c)} atividade${n(c) === 1 ? '' : 's'}</span></span></label>`).join('')}</div></div>
+      <div class="campo"><label>Feriado ou dia sem expediente</label>
+        <div class="filtros-prog">${dias.map((d) => `<label class="check-linha"><input type="checkbox" name="fer" value="${d}" ${feriadoDe(d) ? 'checked' : ''}> ${diaCurto(d)}</label>`).join('')}</div>
+        <span class="ajuda">O dia marcado sai escrito FERIADO na ficha, sem atividades.</span></div>
+      <div id="msg-fichas"></div></form>`,
+    rodape: `<button class="btn" data-fechar>Cancelar</button><button class="btn btn-primario" type="submit" form="f-fichas"><i data-lucide="printer"></i> Abrir para imprimir</button>`,
+  });
+  el.querySelector('form').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const ids = [...f.querySelectorAll('[name=col]:checked')].map((x) => x.value);
+    if (!ids.length) { el.querySelector('#msg-fichas').innerHTML = '<div class="alerta perigo">Marque pelo menos um colaborador.</div>'; return; }
+    const janela = window.open('', '_blank');
+    if (!janela) { el.querySelector('#msg-fichas').innerHTML = '<div class="alerta perigo">O navegador bloqueou a janela de impressão. Permita janelas pop-up para este site e tente de novo.</div>'; return; }
+    const feriados = Object.fromEntries([...f.querySelectorAll('[name=fer]:checked')].map((x) => [x.value, 'FERIADO']));
+    imprimirFichas(janela, { semana, colabs: lista.filter((c) => ids.includes(c.id)), itens, feriados });
+    fechar();
+  });
 }

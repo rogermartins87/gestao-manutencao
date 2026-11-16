@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-16T19:08:45",
+  "gerado_em": "2026-11-16T19:17:41",
   "arquivos": {
     "css/styles.css": "d746ffd069",
     "js/app.js": "b0e9976856",
@@ -13,6 +13,7 @@
     "js/pages/equipamento-ficha.js": "4717b04989",
     "js/pages/equipamento-form.js": "a2bd55b66d",
     "js/pages/equipamentos.js": "8cb3fd800d",
+    "js/pages/ficha-semanal.js": "40b51322d6",
     "js/pages/horimetros.js": "0b34934ff4",
     "js/pages/iluminacao-ficha.js": "828c986f2f",
     "js/pages/iluminacao.js": "74161b309d",
@@ -35,7 +36,7 @@
     "js/pages/preditiva.js": "5e495e06db",
     "js/pages/preventiva.js": "ccc03b50af",
     "js/pages/producao.js": "b8ec20aaf1",
-    "js/pages/programacao.js": "977e154f73",
+    "js/pages/programacao.js": "5f22d82469",
     "js/pages/relatorios.js": "0d015f8f07",
     "js/pages/usuarios.js": "1ff916d617",
     "js/plantas.js": "3c534d9ae8",
