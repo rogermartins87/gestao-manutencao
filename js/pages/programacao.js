@@ -238,6 +238,8 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
   const minha = colabs.find((c) => c.id === i.staff_id)?.profile_id === store.perfil?.id;
   const registra = gestor || minha;
   const pendAberta = i.pending_task_id && pe.ABERTAS.includes(i.pending_status);
+  // quem programa pode ligar (ou trocar) a pendência; a lista chega depois de abrir
+  const ligar = gestor;
   const { el, fechar } = abrirModal({
     titulo: 'Atividade programada',
     html: `<form id="f-ativ" class="grade" style="gap:14px">
@@ -251,8 +253,11 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
       <div class="campo"><label>Resultado</label>
         <div class="abas-acesso" role="radiogroup">${Object.entries(pg.STATUS_PROG).map(([k, s]) => `<button type="button" data-res="${k}" class="${i.status === k ? 'ativa' : ''}"><i data-lucide="${s.icone}" style="width:15px;height:15px;vertical-align:-3px"></i> ${s.nome}</button>`).join('')}</div></div>
       <div class="campo"><label for="at-obs" id="at-obs-rot">Observação</label><textarea id="at-obs" name="obs" rows="2" maxlength="1000" placeholder="Opcional">${esc(i.result_note || '')}</textarea></div>
-      ${pendAberta ? '<label class="check-linha oculto" id="at-conc-l"><input type="checkbox" id="at-conc" checked> Concluir também a pendência (o problema foi resolvido)</label>' : ''}`
+      ${pendAberta || ligar ? '<label class="check-linha oculto" id="at-conc-l"><input type="checkbox" id="at-conc" checked> Concluir também a pendência (o problema foi resolvido)</label>' : ''}`
     : `<p class="muted small" style="margin:0">Só quem programa ou o próprio colaborador registram o resultado.</p>`}
+      ${ligar ? `<div class="campo"><label for="at-pend"><i data-lucide="link" style="width:14px;height:14px;vertical-align:-2px"></i> ${i.pending_task_id ? 'Pendência ligada' : 'Ligar a uma pendência'}</label>
+        <select id="at-pend" name="pend" disabled><option value="">Carregando…</option></select>
+        <span class="small muted" id="at-pend-dica"></span></div>` : ''}
       ${gestor ? `<details class="secao-det"${i.status === 'programada' ? '' : ' hidden'}><summary>Mudar dia ou colaborador</summary>
         <div class="grade grade-form" style="margin-top:10px">
           <div class="campo"><label for="at-col">Colaborador</label><select id="at-col" name="col">${colabs.filter((c) => c.active || c.id === i.staff_id).map((c) => `<option value="${c.id}" ${c.id === i.staff_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
@@ -272,10 +277,27 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
       el.querySelector('#at-obs-rot').textContent = res === 'nao_feita' ? 'Por que não foi feita? *' : 'Observação';
       obs.placeholder = res === 'nao_feita' ? 'Ex.: faltou peça; máquina não foi liberada pela produção' : res === 'feita' ? 'Opcional. Ex.: trocado o retentor' : 'Opcional';
     }
-    el.querySelector('#at-conc-l')?.classList.toggle('oculto', res !== 'feita');
+    const temPend = f.pend ? !!f.pend.value && f.pend.selectedOptions[0]?.dataset.aberta === '1' : pendAberta;
+    el.querySelector('#at-conc-l')?.classList.toggle('oculto', res !== 'feita' || !temPend);
   };
   el.querySelectorAll('[data-res]').forEach((b) => b.addEventListener('click', () => { res = b.dataset.res; ajustar(); }));
   ajustar();
+  if (ligar) {
+    // pendências abertas do mesmo equipamento (sem equipamento: todas as abertas)
+    (i.equipment_id ? pe.doEquipamento(i.equipment_id) : pe.listar()).then((ps) => {
+      const abertas = ps.filter((p) => pe.ABERTAS.includes(p.status) && p.id !== i.pending_task_id)
+        .sort((a, b) => String(a.equipment_tag || '').localeCompare(String(b.equipment_tag || '')) || a.title.localeCompare(b.title, 'pt-BR'));
+      const op = (p, sel) => `<option value="${p.id}" data-aberta="${pe.ABERTAS.includes(p.status) ? 1 : 0}" ${sel ? 'selected' : ''}>${esc(`${!i.equipment_id && p.equipment_tag ? `${p.equipment_tag} — ` : ''}${p.title}`)}${p.next_schedule_date && p.id !== i.pending_task_id ? ` (programada ${fmtData(p.next_schedule_date).slice(0, 5)})` : ''}</option>`;
+      f.pend.innerHTML = `<option value="">${i.pending_task_id ? 'Nenhuma (desligar)' : 'Nenhuma'}</option>
+        ${i.pending_task_id ? op({ id: i.pending_task_id, title: i.pending_title || 'Pendência atual', status: i.pending_status, equipment_tag: i.equipment_tag }, true) : ''}
+        ${abertas.map((p) => op(p, false)).join('')}`;
+      f.pend.disabled = false;
+      el.querySelector('#at-pend-dica').textContent = abertas.length || i.pending_task_id ? ''
+        : (i.equipment_id ? 'Nenhuma pendência aberta para este equipamento.' : 'Nenhuma pendência aberta.');
+      f.pend.addEventListener('change', ajustar);
+      ajustar();
+    }).catch(() => { f.pend.innerHTML = '<option value="">Não foi possível carregar</option>'; });
+  }
   el.querySelector('#at-remover')?.addEventListener('click', async () => {
     if (!(await confirmar({ titulo: 'Tirar da programação', mensagem: `Tirar "<b>${esc(i.title)}</b>" da programação de ${esc(i.staff_name)}? A pendência continua aberta na lista.`, botao: 'Tirar', perigo: true }))) return;
     try { await pg.remover(i.id); toast('Atividade tirada da programação.'); fechar(); depois?.(); } catch (err) { toast(traduzirErro(err), 'erro'); }
@@ -286,10 +308,12 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
     try {
       const d = { status: res, result_note: f.obs?.value.trim() || null };
       if (gestor && f.col && res === 'programada') Object.assign(d, { staff_id: f.col.value, scheduled_date: f.dia.value });
+      const pendId = f.pend && !f.pend.disabled ? (f.pend.value || null) : i.pending_task_id;
+      if (pendId !== (i.pending_task_id || null)) d.pending_task_id = pendId;
       await pg.alterar(i.id, d);
-      let aviso = res === 'feita' ? 'Atividade feita.' : res === 'nao_feita' ? 'Registrado: não feita.' : 'Atividade salva.';
-      if (res === 'feita' && el.querySelector('#at-conc')?.checked) {
-        try { await pe.salvar(i.pending_task_id, { status: 'concluida', done_note: d.result_note }); aviso = 'Atividade feita e pendência concluída.'; }
+      let aviso = res === 'feita' ? 'Atividade feita.' : res === 'nao_feita' ? 'Registrado: não feita.' : 'pending_task_id' in d ? (pendId ? 'Atividade ligada à pendência.' : 'Atividade desligada da pendência.') : 'Atividade salva.';
+      if (res === 'feita' && pendId && !el.querySelector('#at-conc-l')?.classList.contains('oculto') && el.querySelector('#at-conc')?.checked) {
+        try { await pe.salvar(pendId, { status: 'concluida', done_note: d.result_note }); aviso = 'Atividade feita e pendência concluída.'; }
         catch (err) { toast(`Atividade salva, mas a pendência não foi concluída: ${traduzirErro(err)}`, 'erro'); }
       }
       toast(aviso); fechar(); depois?.();

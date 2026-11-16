@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-11-16T20:08:13",
+  "gerado_em": "2026-11-16T20:27:11",
   "arquivos": {
     "css/styles.css": "22a53154c1",
     "js/app.js": "8426cc0867",
@@ -36,7 +36,7 @@
     "js/pages/preditiva.js": "5e495e06db",
     "js/pages/preventiva.js": "ccc03b50af",
     "js/pages/producao.js": "b8ec20aaf1",
-    "js/pages/programacao.js": "f5a7504f27",
+    "js/pages/programacao.js": "1505c7c297",
     "js/pages/relatorios.js": "0d015f8f07",
     "js/pages/usuarios.js": "1ff916d617",
     "js/plantas.js": "3c534d9ae8",
