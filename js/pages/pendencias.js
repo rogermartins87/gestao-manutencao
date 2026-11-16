@@ -46,6 +46,8 @@ export async function abrirPendencia({ pend = null, equipamentoId = null, osId =
         <div class="campo"><label for="pp-prazo">Prazo</label><input id="pp-prazo" name="prazo" type="date" value="${v.due_date || ''}"></div>
         <div class="campo"><label for="pp-pri">Prioridade</label><select id="pp-pri" name="pri">
           ${Object.entries(PRIORIDADE).map(([k, x]) => `<option value="${k}" ${v.priority === k ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></div>
+        <div class="campo"><label for="pp-esp">Especialidade</label><select id="pp-esp" name="esp"><option value="">Não definida</option>
+          ${Object.entries(pe.ESPECIALIDADE).map(([k, x]) => `<option value="${k}" ${v.specialty === k ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select></div>
       </div>
       <div class="grade grade-form">
         <div class="campo"><label for="pp-eq">Equipamento</label><select id="pp-eq" name="eq"><option value="">Nenhum</option>
@@ -57,7 +59,7 @@ export async function abrirPendencia({ pend = null, equipamentoId = null, osId =
     botao: pend ? 'Salvar' : 'Criar pendência',
     enviar: async (f) => {
       const d = { title: f.tit.value.trim(), description: f.desc.value.trim() || null, assigned_to: f.resp.value || null,
-        due_date: f.prazo.value || null, priority: f.pri.value, equipment_id: f.eq.value || null, work_order_id: f.os.value || null };
+        due_date: f.prazo.value || null, priority: f.pri.value, specialty: f.esp.value || null, equipment_id: f.eq.value || null, work_order_id: f.os.value || null };
       if (pend) await pe.salvar(pend.id, d); else await pe.criar(d);
     },
     sucesso: pend ? 'Pendência alterada.' : 'Pendência criada.', depois,
@@ -99,7 +101,8 @@ function cartao(p) {
   return `<div class="cartao-pend ${p.overdue ? 'atrasada' : ''}" data-id="${p.id}" tabindex="0" role="button" aria-label="${esc(p.title)}">
     <div class="cartao-pend-cab">${badgePri(p.priority)}${prazo(p)}</div>
     <b class="cartao-pend-tit">${esc(p.title)}</b>
-    ${p.equipment_tag || p.work_order_number ? `<div class="small muted">${[p.equipment_tag, p.work_order_number].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
+    ${p.equipment_tag || p.work_order_number || p.specialty ? `<div class="small muted">${[p.equipment_tag, p.work_order_number, pe.ESPECIALIDADE[p.specialty]?.nome].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
+    ${p.next_schedule_date && pe.ABERTAS.includes(p.status) ? `<div class="small prog-tag"><i data-lucide="calendar-check" style="width:13px;height:13px;vertical-align:-2px"></i> Programada ${fmtData(p.next_schedule_date).slice(0, 5)} · ${esc(p.next_schedule_staff)}</div>` : ''}
     <div class="cartao-pend-rod"><span class="small"><i data-lucide="user" style="width:14px;height:14px;vertical-align:-2px"></i> ${esc(p.assigned_to_name || 'sem responsável')}</span>
       ${pode_ && p.status === 'aberta' ? `<button class="btn btn-sm" data-st="em_andamento" data-p="${p.id}">Iniciar</button>` : ''}
       ${pode_ && pe.ABERTAS.includes(p.status) ? `<button class="btn btn-sm btn-sucesso" data-st="concluida" data-p="${p.id}"><i data-lucide="check"></i> Concluir</button>` : ''}
@@ -125,7 +128,7 @@ const ABAS = { quadro: 'Quadro', lista: 'Lista' };
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   let aba = ABAS[params.get('aba')] ? params.get('aba') : 'quadro';
-  const f = { minhas: params.get('minhas') === '1', resp: '', busca: '', status: '' };
+  const f = { minhas: params.get('minhas') === '1', resp: '', busca: '', status: '', esp: '' };
   el.innerHTML = `
     <div class="cabecalho-pagina"><div><h1>Pendências</h1>
       <p>${papel() === 'tecnico' ? 'As suas tarefas: as que foram passadas para você e as que você criou.' : 'Tarefas avulsas com responsável e prazo, e o que está atrasado no sistema.'}</p></div>
@@ -136,9 +139,12 @@ export async function render(el) {
     <div class="card card-filtros"><div class="card-corpo filtros-equip filtros-pecas">
       <div class="campo busca-campo"><label for="pe-busca">Buscar</label><input id="pe-busca" type="search" placeholder="Título, TAG, OS…"></div>
       <div class="campo"><label for="pe-resp">Responsável</label><select id="pe-resp"><option value="">Todos</option><option value="-">Sem responsável</option></select></div>
+      <div class="campo"><label for="pe-esp">Especialidade</label><select id="pe-esp"><option value="">Todas</option>
+        ${Object.entries(pe.ESPECIALIDADE).map(([k, x]) => `<option value="${k}">${esc(x.nome)}</option>`).join('')}<option value="-">Não definida</option></select></div>
       <label class="check-linha" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="pe-minhas"> Só as minhas</label>
     </div></div>
-    <div class="abas" role="tablist">${Object.entries(ABAS).map(([k, v]) => `<button class="aba" data-aba="${k}">${v}</button>`).join('')}</div>
+    <div class="abas" role="tablist">${Object.entries(ABAS).map(([k, v]) => `<button class="aba" data-aba="${k}">${v}</button>`).join('')}
+      <a class="aba aba-link" href="#/programacao"><i data-lucide="calendar-range" style="width:16px;height:16px;vertical-align:-3px"></i> Programação semanal</a></div>
     <div id="aba-pend">${carregando()}</div>`;
   el.querySelector('#pe-minhas').checked = f.minhas;
   const corpo = el.querySelector('#aba-pend');
@@ -180,6 +186,7 @@ export async function render(el) {
     const t = f.busca.trim().toLowerCase(); const eu = store.perfil?.id;
     return lista.filter((p) => (!f.minhas || p.assigned_to === eu || (!p.assigned_to && p.created_by === eu))
       && (!f.resp || (f.resp === '-' ? !p.assigned_to : p.assigned_to === f.resp))
+      && (!f.esp || (f.esp === '-' ? !p.specialty : p.specialty === f.esp || (p.specialty === 'ambos' && f.esp !== 'ambos')))
       && (!t || [p.title, p.equipment_tag, p.equipment_name, p.work_order_number, p.description].some((v) => String(v || '').toLowerCase().includes(t))));
   };
   const ordemPri = { urgente: 0, alta: 1, media: 2, baixa: 3 };
@@ -214,6 +221,8 @@ export async function render(el) {
           { titulo: 'Pendência', valor: (p) => p.title, primaria: true, render: (p) => `<div><b>${esc(p.title)}</b>${p.equipment_tag || p.work_order_number ? `<div class="small muted">${[p.equipment_tag, p.work_order_number].filter(Boolean).map(esc).join(' · ')}</div>` : ''}</div>` },
           { titulo: 'Situação', valor: (p) => Object.keys(pe.STATUS_PEND).indexOf(p.status), render: (p) => badgePend(p.status) },
           { titulo: 'Prioridade', valor: (p) => ordemPri[p.priority], render: (p) => badgePri(p.priority) },
+          { titulo: 'Especialidade', valor: (p) => pe.ESPECIALIDADE[p.specialty]?.nome || '', render: (p) => esc(pe.ESPECIALIDADE[p.specialty]?.nome || '—') },
+          { titulo: 'Programação', valor: (p) => p.next_schedule_date || '9999', render: (p) => (p.next_schedule_date && pe.ABERTAS.includes(p.status) ? `<span class="small nowrap">${fmtData(p.next_schedule_date).slice(0, 5)} · ${esc(p.next_schedule_staff)}</span>` : '<span class="muted small">—</span>') },
           { titulo: 'Prazo', valor: (p) => p.due_date || '9999', classe: 'num', render: prazo },
           { titulo: 'Responsável', valor: (p) => p.assigned_to_name || '', render: (p) => esc(p.assigned_to_name || '—') },
         ],
@@ -277,6 +286,7 @@ export async function render(el) {
 
   el.querySelector('#btn-nova-pend')?.addEventListener('click', nova);
   el.querySelector('.abas').addEventListener('click', (ev) => { const b = ev.target.closest('[data-aba]'); if (b) { aba = b.dataset.aba; desenhar(); } });
+  el.querySelector('#pe-esp').onchange = (ev) => { f.esp = ev.target.value; desenhar(); };
   el.querySelector('#pe-busca').oninput = (ev) => { f.busca = ev.target.value; desenhar(); };
   el.querySelector('#pe-resp').onchange = (ev) => { f.resp = ev.target.value; desenhar(); desenharEquipe(); };
   el.querySelector('#pe-minhas').onchange = (ev) => { f.minhas = ev.target.checked; desenhar(); desenharSemOS(); };

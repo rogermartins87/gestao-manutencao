@@ -14,8 +14,13 @@ export const STATUS_PEND = {
   cancelada: { nome: 'Cancelada', classe: 'inativo', icone: 'circle-x' },
 };
 export const ABERTAS = ['aberta', 'em_andamento'];
+export const ESPECIALIDADE = {
+  mecanica: { nome: 'Mecânica', icone: 'wrench' },
+  eletrica: { nome: 'Elétrica', icone: 'zap' },
+  ambos: { nome: 'Mecânica e elétrica', icone: 'layers' },
+};
 
-const CAMPOS = ['title', 'description', 'equipment_id', 'work_order_id', 'assigned_to', 'due_date', 'priority', 'status', 'done_note', 'cancel_reason'];
+const CAMPOS = ['title', 'description', 'equipment_id', 'work_order_id', 'assigned_to', 'due_date', 'priority', 'status', 'done_note', 'cancel_reason', 'specialty'];
 const so = (d) => Object.fromEntries(CAMPOS.filter((c) => c in d).map((c) => [c, d[c]]));
 
 export const listar = async () => daPlanta(ok(await sb.from('vw_pending_tasks').select('*').order('due_date', { ascending: true }).limit(2000)));

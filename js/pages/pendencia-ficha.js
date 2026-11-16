@@ -2,13 +2,14 @@
 // Ficha da pendência: detalhes, botões de andamento e histórico.
 // =====================================================================
 import { pode } from '../store.js';
-import { esc, icones, vazio, fmtDataHora } from '../ui.js';
+import { esc, icones, vazio, fmtDataHora, fmtData } from '../ui.js';
+import { daPendencia, STATUS_PROG } from '../services/programacao.js';
 import * as pe from '../services/pendencias.js';
 import { PRIORIDADE } from '../services/ordens.js';
 import { podeAlterar, badgePend, prazo, abrirPendencia, mudarStatus } from './pendencias.js';
 
 const ROTULO = { title: 'Título', description: 'Detalhes', assigned_to: 'Responsável', due_date: 'Prazo', priority: 'Prioridade',
-  equipment_id: 'Equipamento', work_order_id: 'OS', status: 'Situação', done_note: 'Como foi resolvido', cancel_reason: 'Motivo do cancelamento' };
+  equipment_id: 'Equipamento', work_order_id: 'OS', specialty: 'Especialidade', status: 'Situação', done_note: 'Como foi resolvido', cancel_reason: 'Motivo do cancelamento' };
 
 export async function render(el, [id]) {
   const p = await pe.ler(id);
@@ -36,6 +37,8 @@ export async function render(el, [id]) {
         <div><span class="rotulo">Responsável</span><b>${esc(p.assigned_to_name || 'sem responsável')}</b></div>
         <div><span class="rotulo">Prazo</span>${prazo(p)}</div>
         <div><span class="rotulo">Prioridade</span><span class="badge ${PRIORIDADE[p.priority].classe}">${esc(PRIORIDADE[p.priority].nome)}</span></div>
+        <div><span class="rotulo">Especialidade</span><b>${esc(pe.ESPECIALIDADE[p.specialty]?.nome || 'Não definida')}</b></div>
+        <div><span class="rotulo">Programação</span><span id="prog-pend" class="small muted">—</span></div>
       </div>
     </div></div>
     ${p.status === 'concluida' ? `<div class="alerta sucesso secao"><i data-lucide="circle-check"></i><div>Concluída por ${esc(p.done_by_name || '—')} em ${fmtDataHora(p.done_at)}${p.done_note ? `: ${esc(p.done_note)}` : '.'}</div></div>` : ''}
@@ -56,8 +59,15 @@ export async function render(el, [id]) {
   el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => mudarStatus(p, b.dataset.st, recarregar)));
   el.querySelector('#btn-editar')?.addEventListener('click', () => abrirPendencia({ pend: p, depois: recarregar }));
 
+  daPendencia(id).then((xs) => {
+    const box = el.querySelector('#prog-pend');
+    if (!box || !xs.length) return;
+    box.classList.remove('muted');
+    box.innerHTML = xs.map((x) => `<a href="#/programacao?semana=${x.scheduled_date}">${fmtData(x.scheduled_date)} · ${esc(x.staff_name)}</a>
+      <span class="badge ${STATUS_PROG[x.status].classe}">${esc(STATUS_PROG[x.status].nome)}</span>${x.result_note ? ` <span class="muted">${esc(x.result_note)}</span>` : ''}`).join('<br>');
+  }).catch(() => {});
   const logs = await pe.alteracoes(id).catch(() => []);
-  const val = (c, v) => (v == null || v === '' ? '—' : c === 'status' ? pe.STATUS_PEND[v]?.nome || v : c === 'priority' ? PRIORIDADE[v]?.nome || v
+  const val = (c, v) => (v == null || v === '' ? '—' : c === 'status' ? pe.STATUS_PEND[v]?.nome || v : c === 'priority' ? PRIORIDADE[v]?.nome || v : c === 'specialty' ? pe.ESPECIALIDADE[v]?.nome || v
     : c === 'due_date' ? v.split('-').reverse().join('/') : ['assigned_to', 'equipment_id', 'work_order_id'].includes(c) ? 'alterado' : String(v));
   const desc = (l) => {
     if (l.action === 'insert') return 'Pendência criada';

@@ -1572,3 +1572,59 @@ body.com-dica-app { padding-bottom: 240px; }
 .kpi.kpi-aviso .valor { color: var(--aviso); }
 .campo-largo { grid-column: span 2; }
 @media (max-width: 600px) { .campo-largo { grid-column: auto; } }
+
+/* Programação semanal */
+.aba-link { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--acento-600, var(--base-700)); }
+.prog-tag { color: var(--base-700); }
+.semana-nav .card-corpo { display: flex; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+.semana-titulo { display: flex; flex-direction: column; min-width: 220px; text-align: center; }
+.semana-titulo b { font-size: 1.05rem; }
+.prog-kpis { margin-top: 16px; }
+.prog-quadro { overflow-x: auto; }
+.prog-linha { display: grid; grid-template-columns: 190px repeat(var(--dias), minmax(150px, 1fr)); border-bottom: 1px solid var(--borda); min-width: calc(190px + var(--dias) * 150px); }
+.prog-linha:last-child { border-bottom: 0; }
+.prog-linha.minha { background: #f5f9ff; }
+.prog-cab { background: #f6f7f9; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-2); font-weight: 600; }
+.prog-cab > div { padding: 10px 12px; }
+.prog-dia.hoje { color: var(--base-800); background: #e7effc; }
+.prog-pessoa { padding: 12px; display: flex; flex-direction: column; gap: 3px; border-right: 1px solid var(--borda); }
+.prog-ef { margin-top: 4px; }
+.ef { font-weight: 700; }
+.ef.bom { color: var(--sucesso); } .ef.alerta { color: var(--aviso); } .ef.ruim { color: var(--perigo); }
+.prog-celula { padding: 8px; display: flex; flex-direction: column; gap: 6px; border-right: 1px solid var(--borda); min-height: 64px; }
+.prog-celula:last-child { border-right: 0; }
+.prog-celula.hoje { background: rgba(37, 99, 235, .04); }
+.ativ { display: flex; gap: 6px; align-items: flex-start; text-align: left; font: inherit; font-size: .8rem; line-height: 1.3; padding: 6px 8px;
+  border-radius: 7px; border: 1px solid var(--borda); background: #fff; cursor: pointer; color: var(--texto); width: 100%; }
+.ativ svg { width: 14px; height: 14px; flex: none; margin-top: 1px; }
+.ativ:hover { border-color: var(--base-600, #5b7bb5); }
+.ativ-txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ativ.programada svg { color: var(--info); }
+.ativ.feita { background: var(--sucesso-fundo); border-color: transparent; }
+.ativ.feita svg { color: var(--sucesso); }
+.ativ.feita .ativ-txt { color: var(--texto-2); }
+.ativ.nao_feita { background: var(--perigo-fundo); border-color: transparent; }
+.ativ.nao_feita svg { color: var(--perigo); }
+.ativ.atrasada { border-color: var(--aviso); border-style: dashed; }
+.prog-mais { border: 1px dashed var(--borda); background: none; border-radius: 7px; color: var(--texto-3); cursor: pointer; padding: 3px; display: flex; justify-content: center; opacity: .6; }
+.prog-mais:hover { opacity: 1; color: var(--base-700); border-color: var(--base-600, #5b7bb5); }
+.prog-mais svg { width: 15px; height: 15px; }
+.filtros-prog { display: flex; gap: 12px 18px; flex-wrap: wrap; align-items: center; }
+.filtros-prog input[type=search] { flex: 1 1 240px; }
+.lista-escolha { max-height: 340px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 8px; }
+.escolha { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border-bottom: 1px solid var(--borda); cursor: pointer; font-size: .88rem; }
+.escolha:last-child { border-bottom: 0; }
+.escolha.sel { background: #eef4ff; }
+.escolha input { margin-top: 3px; }
+.escolha .small { display: block; }
+.form-colab { border-top: 1px solid var(--borda); margin-top: 14px; padding: 16px 0 0; }
+@media (max-width: 760px) {
+  .prog-quadro { overflow: visible; }
+  .prog-linha { display: block; min-width: 0; }
+  .prog-cab { display: none; }
+  .prog-pessoa { border-right: 0; background: #f6f7f9; }
+  .prog-celula { border-right: 0; border-top: 1px solid var(--borda); min-height: 0; }
+  .prog-celula::before { content: attr(data-rotulo); font-size: .75rem; font-weight: 600; color: var(--texto-3); text-transform: uppercase; }
+}
+.escolha input[type=checkbox] { width: 18px; height: 18px; flex: none; margin: 2px 0 0; padding: 0; }
+.escolha > span { flex: 1; text-align: left; }
