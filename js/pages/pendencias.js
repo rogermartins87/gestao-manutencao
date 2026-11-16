@@ -110,10 +110,9 @@ function cartao(p) {
 }
 
 export async function alertasSistema() {
-  const [oss, ag, pts, hms, pso] = await Promise.all([listarOS().catch(() => []), agendaAberta().catch(() => []),
-    pontosPred().catch(() => []), situacaoHm().catch(() => []), paradasSemOS().catch(() => [])]);
+  const [oss, ag, pts, hms] = await Promise.all([listarOS().catch(() => []), agendaAberta().catch(() => []),
+    pontosPred().catch(() => []), situacaoHm().catch(() => [])]);
   return [
-    { n: pso.length, t: 'Paradas sem OS', i: 'unlink', h: '#/pendencias?aba=quadro', cl: 'st-parado' },
     { n: oss.filter((o) => o.overdue).length, t: 'OS atrasadas', i: 'clipboard-list', h: '#/ordens?situacao=atrasadas', cl: 'st-parado' },
     { n: oss.filter((o) => o.status === 'aberta').length, t: 'OS aguardando aprovação', i: 'stamp', h: '#/ordens?situacao=aberta', cl: 'st-manutencao' },
     { n: ag.filter((s) => s.situacao === 'vencida').length, t: 'Preventivas vencidas', i: 'calendar-x', h: '#/preventiva', cl: 'st-parado' },
@@ -133,19 +132,21 @@ export async function render(el) {
     <div class="cabecalho-pagina"><div><h1>Pendências</h1>
       <p>${papel() === 'tecnico' ? 'As suas tarefas: as que foram passadas para você e as que você criou.' : 'Tarefas avulsas com responsável e prazo, e o que está atrasado no sistema.'}</p></div>
       <div class="acoes">${pode('pending.write') ? '<button class="btn btn-primario" id="btn-nova-pend"><i data-lucide="plus"></i> Nova pendência</button>' : ''}</div></div>
+    <div id="resumo-pend" class="grade resumo-pend"></div>
     <div id="alertas-sis"></div>
-    <div id="equipe-tec"></div>
-    <div id="paradas-sem-os"></div>
-    <div class="card card-filtros"><div class="card-corpo filtros-equip filtros-pecas">
+    <div class="card barra-pend">
+    <div class="abas" role="tablist">${Object.entries(ABAS).map(([k, v]) => `<button class="aba" data-aba="${k}"><i data-lucide="${k === 'quadro' ? 'columns-3' : 'list'}" style="width:16px;height:16px;vertical-align:-3px"></i> ${v}</button>`).join('')}
+      <a class="aba aba-link" href="#/programacao"><i data-lucide="calendar-range" style="width:16px;height:16px;vertical-align:-3px"></i> Programação semanal</a></div>
+    <div class="card-corpo filtros-pend">
       <div class="campo busca-campo"><label for="pe-busca">Buscar</label><input id="pe-busca" type="search" placeholder="Título, TAG, OS…"></div>
       <div class="campo"><label for="pe-resp">Responsável</label><select id="pe-resp"><option value="">Todos</option><option value="-">Sem responsável</option></select></div>
       <div class="campo"><label for="pe-esp">Especialidade</label><select id="pe-esp"><option value="">Todas</option>
         ${Object.entries(pe.ESPECIALIDADE).map(([k, x]) => `<option value="${k}">${esc(x.nome)}</option>`).join('')}<option value="-">Não definida</option></select></div>
-      <label class="check-linha" style="align-self:end;padding-bottom:10px"><input type="checkbox" id="pe-minhas"> Só as minhas</label>
+      <label class="check-linha"><input type="checkbox" id="pe-minhas"> Só as minhas</label>
     </div></div>
-    <div class="abas" role="tablist">${Object.entries(ABAS).map(([k, v]) => `<button class="aba" data-aba="${k}">${v}</button>`).join('')}
-      <a class="aba aba-link" href="#/programacao"><i data-lucide="calendar-range" style="width:16px;height:16px;vertical-align:-3px"></i> Programação semanal</a></div>
-    <div id="aba-pend">${carregando()}</div>`;
+    <div id="aba-pend">${carregando()}</div>
+    <div id="paradas-sem-os"></div>
+    <div id="equipe-tec"></div>`;
   el.querySelector('#pe-minhas').checked = f.minhas;
   const corpo = el.querySelector('#aba-pend');
   let lista = [];
@@ -174,11 +175,44 @@ export async function render(el) {
         </div>`).join('')}</div></div>`;
     icones();
   };
-  paradasSemOS().then((l) => { semOS = l || []; desenharSemOS(); }).catch(() => {});
+  paradasSemOS().then((l) => { semOS = l || []; desenharSemOS(); desenharResumo(); }).catch(() => {});
+
+  // ---- Cards do topo: paradas sem OS + pendências por situação (respeitam os filtros) ----
+  const limite30 = addDias(hojeISO(), -30);
+  let carregou = false;
+  const desenharResumo = () => {
+    const box = el.querySelector('#resumo-pend');
+    if (!carregou) return;
+    const r = filtrar();
+    const aFazer = r.filter((p) => p.status === 'aberta');
+    const andam = r.filter((p) => p.status === 'em_andamento');
+    const concl = r.filter((p) => p.status === 'concluida' && String(p.done_at).slice(0, 10) >= limite30);
+    const atr = (xs) => xs.filter((p) => p.overdue).length;
+    const verSemOS = !tecnico && !(f.minhas && papel() !== 'planejador');
+    const abertasSemOS = semOS.filter((d) => d.is_open).length;
+    const card = (o) => `<button class="card kpi kpi-botao ${o.cl || ''}" data-kpi="${o.k}"><span class="rotulo"><i data-lucide="${o.i}"></i>${o.t}</span>
+      <span class="valor">${o.n}</span><span class="detalhe">${o.d}</span></button>`;
+    box.innerHTML = [
+      verSemOS ? card({ k: 'semos', i: 'unlink', t: 'Paradas sem OS', n: semOS.length, cl: semOS.length ? 'kpi-perigo' : '',
+        d: semOS.length ? `${abertasSemOS} em aberto · criar a OS` : 'nenhuma esperando OS' }) : '',
+      card({ k: 'aberta', i: 'circle', t: 'A fazer', n: aFazer.length, cl: atr(aFazer) ? 'kpi-aviso' : '', d: atr(aFazer) ? `${atr(aFazer)} atrasada${atr(aFazer) === 1 ? '' : 's'}` : 'nenhuma atrasada' }),
+      card({ k: 'em_andamento', i: 'loader', t: 'Em andamento', n: andam.length, d: atr(andam) ? `${atr(andam)} atrasada${atr(andam) === 1 ? '' : 's'}` : 'nenhuma atrasada' }),
+      card({ k: 'concluida', i: 'circle-check', t: 'Concluídas', n: concl.length, cl: 'kpi-ok', d: 'nos últimos 30 dias' }),
+    ].join('');
+    box.style.setProperty('--k', verSemOS ? 4 : 3);
+    icones();
+  };
+  el.querySelector('#resumo-pend').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-kpi]'); if (!b) return;
+    if (b.dataset.kpi === 'semos') { el.querySelector('#paradas-sem-os .card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    // abre a lista já filtrada pela situação
+    aba = 'lista'; f.status = b.dataset.kpi; desenhar();
+    el.querySelector('.barra-pend')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   if (!tecnico) alertasSistema().then((al) => {
-    el.querySelector('#alertas-sis').innerHTML = al.length ? `<h2 class="secao-titulo"><i data-lucide="bell-ring"></i> Atenção no sistema</h2>
-      <div class="faixa-status">${al.map((x) => `<a class="quadro-status ${x.cl}" href="${x.h}"><span class="n">${x.n}</span><span><i data-lucide="${x.i}"></i> ${esc(x.t)}</span></a>`).join('')}</div>` : '';
+    el.querySelector('#alertas-sis').innerHTML = al.length ? `<div class="faixa-alertas"><span class="faixa-alertas-rot"><i data-lucide="bell-ring"></i> Atenção no sistema</span>
+      ${al.map((x) => `<a class="chip-alerta ${x.cl}" href="${x.h}"><i data-lucide="${x.i}"></i><b>${x.n}</b> ${esc(x.t)}</a>`).join('')}</div>` : '';
     icones();
   });
 
@@ -194,6 +228,7 @@ export async function render(el) {
     el.querySelectorAll('.aba').forEach((x) => x.classList.toggle('ativa', x.dataset.aba === aba));
     history.replaceState(null, '', `${location.pathname}${location.search}#/pendencias?aba=${aba}${f.minhas ? '&minhas=1' : ''}`);
     const r = filtrar();
+    desenharResumo();
     if (!lista.length) {
       corpo.innerHTML = `<div class="card">${vazio({ icone: 'list-todo', titulo: 'Nenhuma pendência ainda',
         texto: 'Use para tarefas que não são uma OS: comprar uma peça, pedir um orçamento, conferir um desenho.',
@@ -239,6 +274,7 @@ export async function render(el) {
       equipe.forEach((u) => { if (!nomes.some(([id]) => id === u.id)) nomes.push([u.id, u.full_name]); });
       nomes.sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
     }
+    carregou = true;
     sel.innerHTML = `<option value="">Todos</option><option value="-">Sem responsável</option>${nomes.map(([id, n]) => `<option value="${id}" ${f.resp === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}`;
     desenhar();
     desenharEquipe();
@@ -274,7 +310,7 @@ export async function render(el) {
     box.querySelectorAll('[data-eq]').forEach((b) => b.addEventListener('click', () => {
       f.resp = f.resp === b.dataset.eq ? '' : b.dataset.eq;
       el.querySelector('#pe-resp').value = f.resp; desenhar(); desenharEquipe();
-      el.querySelector('.abas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.querySelector('.barra-pend')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }));
     icones();
   };

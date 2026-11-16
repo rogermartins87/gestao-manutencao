@@ -1,7 +1,7 @@
 {
-  "gerado_em": "2026-11-16T19:21:50",
+  "gerado_em": "2026-11-16T19:25:25",
   "arquivos": {
-    "css/styles.css": "0ee298bcd6",
+    "css/styles.css": "a9f8c6ee33",
     "js/app.js": "b0e9976856",
     "js/avisos.js": "fc6dc0990f",
     "js/config.js": "cb4bf7533a",
@@ -29,7 +29,7 @@
     "js/pages/peca-ficha.js": "8d259a90d7",
     "js/pages/pecas.js": "f98012b69f",
     "js/pages/pendencia-ficha.js": "19cbcfa5c8",
-    "js/pages/pendencias.js": "cb8abbdc24",
+    "js/pages/pendencias.js": "b17d33be6c",
     "js/pages/plano-ficha.js": "210ea7cf99",
     "js/pages/plano-form.js": "0900676614",
     "js/pages/ponto-ficha.js": "3b93a8b5ba",
