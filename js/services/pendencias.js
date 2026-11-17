@@ -50,3 +50,9 @@ export const ICONE_AVISO = {
   os_atribuida: 'user-check', os_aprovar: 'stamp', os_concluida: 'clipboard-check', os_cancelada: 'clipboard-x',
   inspecao_critica: 'octagon-alert', conta_pendente: 'user-plus',
 };
+
+// Pendência vira OS: abre a OS, conclui a pendência ligada a ela e leva a programação junto
+export const virarOS = async (id, d) => ok(await sb.rpc('pendencia_vira_os', {
+  p_pendencia: id, p_tipo: d.tipo, p_prioridade: d.prioridade, p_falha: !!d.falha, p_titulo: d.titulo,
+  p_descricao: d.descricao || null, p_responsavel: d.responsavel || null, p_prazo: d.prazo || null, p_equipamento: d.equipamento || null,
+}));

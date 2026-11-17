@@ -2,10 +2,12 @@
 // Ficha da pendência: detalhes, botões de andamento e histórico.
 // =====================================================================
 import { pode } from '../store.js';
-import { esc, icones, vazio, fmtDataHora, fmtData } from '../ui.js';
+import { esc, icones, vazio, fmtDataHora, fmtData, abrirModal, toast, traduzirErro } from '../ui.js';
 import { daPendencia, STATUS_PROG } from '../services/programacao.js';
 import * as pe from '../services/pendencias.js';
-import { PRIORIDADE } from '../services/ordens.js';
+import { PRIORIDADE, TIPO_OS, responsaveis } from '../services/ordens.js';
+import { listarEquipamentos } from '../services/equipamentos.js';
+import { equipamentosParaEscolher } from '../plantas.js';
 import { podeAlterar, badgePend, prazo, abrirPendencia, mudarStatus } from './pendencias.js';
 
 const ROTULO = { title: 'Título', description: 'Detalhes', assigned_to: 'Responsável', due_date: 'Prazo', priority: 'Prioridade',
@@ -27,6 +29,7 @@ export async function render(el, [id]) {
         <div class="acoes">
           ${alt && p.status === 'aberta' ? '<button class="btn" data-st="em_andamento"><i data-lucide="play"></i> Iniciar</button>' : ''}
           ${alt && aberta ? '<button class="btn btn-sucesso" data-st="concluida"><i data-lucide="check"></i> Concluir</button>' : ''}
+          ${aberta && !p.work_order_id && pode('work_order.manage') ? '<button class="btn btn-primario" id="btn-virar-os"><i data-lucide="clipboard-plus"></i> Virar OS</button>' : ''}
           ${alt && aberta ? '<button class="btn" id="btn-editar"><i data-lucide="pencil"></i> Editar</button>' : ''}
           ${alt && aberta ? '<button class="btn btn-texto" data-st="cancelada"><i data-lucide="circle-x"></i> Cancelar</button>' : ''}
           ${alt && !aberta ? '<button class="btn" data-st="aberta"><i data-lucide="rotate-ccw"></i> Reabrir</button>' : ''}
@@ -58,6 +61,7 @@ export async function render(el, [id]) {
 
   el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', () => mudarStatus(p, b.dataset.st, recarregar)));
   el.querySelector('#btn-editar')?.addEventListener('click', () => abrirPendencia({ pend: p, depois: recarregar }));
+  el.querySelector('#btn-virar-os')?.addEventListener('click', () => abrirVirarOS(p));
 
   daPendencia(id).then((xs) => {
     const box = el.querySelector('#prog-pend');
@@ -82,3 +86,56 @@ export async function render(el, [id]) {
     </tbody></table></div>` : vazio({ icone: 'history', titulo: 'Sem histórico visível', texto: pode('audit.read') ? '' : 'O histórico de alterações é visível para gestor e administrador.' });
   icones();
 }
+
+// ---------------------------------------------------------------------
+// Pendência vira OS: o serviço era maior do que parecia
+// ---------------------------------------------------------------------
+async function abrirVirarOS(p) {
+  const [resp, equips] = await Promise.all([responsaveis().catch(() => []), p.equipment_id ? [] : listarEquipamentos().catch(() => [])]);
+  const { el, fechar } = abrirModal({
+    titulo: 'Transformar a pendência em OS',
+    html: `<form id="f-virar" class="grade" style="gap:14px">
+      <div class="alerta info small"><i data-lucide="info"></i><div>A OS é aberta com os dados abaixo. A pendência fica <b>concluída</b> e ligada à OS
+        ("Virou a OS-…")${p.next_schedule_date ? ', e o que já estava na programação passa a ser da OS' : ''}. Peças, horas e o histórico ficam na OS.</div></div>
+      ${p.equipment_id ? `<div><span class="muted">Equipamento:</span> <b>${esc(p.equipment_tag)}</b> — ${esc(p.equipment_name)}</div>`
+        : `<div class="campo"><label for="vo-eq">Equipamento *</label><select id="vo-eq" name="eq" required><option value="">Selecione…</option>
+          ${equipamentosParaEscolher(equips, '').filter((e) => e.status !== 'desativado').map((e) => `<option value="${e.id}">${esc(e.tag)} — ${esc(e.name)}</option>`).join('')}</select></div>`}
+      <div class="grade grade-form">
+        <div class="campo"><label for="vo-tipo">Tipo *</label><select id="vo-tipo" name="tipo">${Object.entries(TIPO_OS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></div>
+        <div class="campo"><label for="vo-pri">Prioridade *</label><select id="vo-pri" name="pri">${Object.entries(PRIORIDADE).map(([k, v]) => `<option value="${k}" ${k === p.priority ? 'selected' : ''}>${esc(v.nome)}</option>`).join('')}</select></div>
+      </div>
+      <fieldset class="campo" id="vo-falha"><legend>Houve falha do equipamento? * <span class="muted small">(conta no MTBF)</span></legend>
+        <label class="check-linha"><input type="radio" name="falha" value="sim" required> Sim — quebrou ou deixou de funcionar como deveria</label>
+        <label class="check-linha"><input type="radio" name="falha" value="nao"> Não — desgaste, ajuste ou melhoria</label></fieldset>
+      <div class="campo"><label for="vo-tit">Título da OS *</label><input id="vo-tit" name="tit" required minlength="3" maxlength="160" value="${esc(p.title)}"></div>
+      <div class="campo"><label for="vo-desc">Descrição</label><textarea id="vo-desc" name="desc" rows="3" maxlength="4000">${esc(p.description || '')}</textarea></div>
+      <div class="grade grade-form">
+        <div class="campo"><label for="vo-resp">Responsável pela execução</label><select id="vo-resp" name="resp"><option value="">A definir</option>
+          ${resp.map((r) => `<option value="${r.id}" ${r.id === p.assigned_to ? 'selected' : ''}>${esc(r.full_name)} (${esc(r.role_name)})</option>`).join('')}</select></div>
+        <div class="campo"><label for="vo-prazo">Prazo</label><input id="vo-prazo" name="prazo" type="date" value="${p.due_date || ''}"></div>
+      </div>
+      <div id="msg-virar"></div></form>`,
+    rodape: '<button class="btn" data-fechar>Voltar</button><button class="btn btn-primario" type="submit" form="f-virar"><i data-lucide="clipboard-plus"></i> Abrir a OS</button>',
+  });
+  const f = el.querySelector('form');
+  const ajustar = () => {
+    const corretiva = f.tipo.value === 'corretiva';
+    el.querySelector('#vo-falha').classList.toggle('oculto', !corretiva);
+    f.querySelectorAll('[name=falha]').forEach((r) => { r.required = corretiva; });
+  };
+  f.tipo.addEventListener('change', ajustar); ajustar();
+  f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = el.querySelector('[type=submit]'); btn.disabled = true;
+    try {
+      const os = await pe.virarOS(p.id, { tipo: f.tipo.value, prioridade: f.pri.value, falha: f.querySelector('[name=falha]:checked')?.value === 'sim',
+        titulo: f.tit.value.trim(), descricao: f.desc.value.trim(), responsavel: f.resp.value, prazo: f.prazo.value, equipamento: f.eq?.value });
+      toast('Pendência transformada em OS.'); fechar(); location.hash = `#/ordens/${os}`;
+    } catch (err) {
+      el.querySelector('#msg-virar').innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;
+      btn.disabled = false;
+    }
+  });
+  icones();
+}
+
