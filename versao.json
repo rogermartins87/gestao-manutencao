@@ -1,7 +1,7 @@
 {
-  "gerado_em": "2026-11-17T13:07:59",
+  "gerado_em": "2026-11-17T13:41:28",
   "arquivos": {
-    "css/styles.css": "6b8780bcc3",
+    "css/styles.css": "a3f2012497",
     "js/app.js": "8426cc0867",
     "js/avisos.js": "fc6dc0990f",
     "js/config.js": "cb4bf7533a",
@@ -36,7 +36,7 @@
     "js/pages/preditiva.js": "5e495e06db",
     "js/pages/preventiva.js": "ccc03b50af",
     "js/pages/producao.js": "b8ec20aaf1",
-    "js/pages/programacao.js": "95a1730452",
+    "js/pages/programacao.js": "0e6a213115",
     "js/pages/relatorios.js": "0d015f8f07",
     "js/pages/usuarios.js": "1ff916d617",
     "js/plantas.js": "3c534d9ae8",
@@ -51,7 +51,7 @@
     "js/services/preditiva.js": "d7541781da",
     "js/services/preventiva.js": "cb1ac3b3cb",
     "js/services/producao.js": "1d1dddb17b",
-    "js/services/programacao.js": "ef0deab88f",
+    "js/services/programacao.js": "957f5bc87e",
     "js/services/usuarios.js": "24f1d7e89e",
     "js/sino.js": "1bb7c282f9",
     "js/store.js": "cac512e826",

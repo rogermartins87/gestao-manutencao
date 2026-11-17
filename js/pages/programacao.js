@@ -38,6 +38,7 @@ export async function render(el) {
         ${gestor ? '<button class="btn btn-primario" id="btn-programar"><i data-lucide="calendar-plus"></i> Programar atividade</button>' : ''}
       </div></div>
     <div id="prog-kpis" class="grade prog-kpis"></div>
+    <div id="prog-reprog"></div>
     <div class="card semana-nav secao"><div class="card-corpo">
       <button class="btn btn-icone" id="sem-ant" aria-label="Semana anterior"><i data-lucide="chevron-left"></i></button>
       <div class="semana-titulo"><b id="sem-txt"></b><span class="small muted" id="sem-sub"></span></div>
@@ -48,7 +49,10 @@ export async function render(el) {
 
   const corpo = el.querySelector('#prog-corpo');
   const kpis = el.querySelector('#prog-kpis');
-  let colabs = [], itens = [];
+  let colabs = [], itens = [], pendentes = [];
+  const boxReprog = el.querySelector('#prog-reprog');
+  // depois de reprogramar, vai para a semana do novo dia
+  const irPara = (dia) => { if (dia) semana = segundaDe(dia); carregar(); };
 
   const carregar = async () => {
     const fim = addDias(semana, 6);
@@ -57,12 +61,33 @@ export async function render(el) {
     el.querySelector('#sem-sub').textContent = semana === segundaDe(hojeISO()) ? 'esta semana' : '';
     el.querySelector('#sem-hoje').style.display = semana === segundaDe(hojeISO()) ? 'none' : '';
     try {
-      [colabs, itens] = await Promise.all([pg.colaboradores(), pg.daSemana(semana, fim)]);
+      [colabs, itens, pendentes] = await Promise.all([pg.colaboradores(), pg.daSemana(semana, fim), pg.aReprogramar().catch(() => [])]);
     } catch (err) { kpis.innerHTML = ''; corpo.innerHTML = erroCarga(err); icones(); return; }
     desenhar();
   };
 
+  const desenharReprog = () => {
+    if (!pendentes.length) { boxReprog.innerHTML = ''; return; }
+    boxReprog.innerHTML = `<div class="card secao card-reprog"><div class="card-titulo"><h3><i data-lucide="calendar-x"></i> Não feitas a reprogramar <span class="contador">${pendentes.length}</span></h3>
+        <span class="muted small">${gestor ? 'escolha um novo dia ou dispense' : 'quem programa vai escolher um novo dia'}</span></div>
+      <div class="card-corpo"><ul class="lista-reprog">${pendentes.map((i) => `<li>
+        <span class="reprog-dia">${diaCurto(i.scheduled_date)}<span class="small muted">${fmtData(i.scheduled_date).slice(6)}</span></span>
+        <div class="reprog-txt"><b>${i.work_order_number ? `<span class="ativ-os">${esc(i.work_order_number)}</span> ` : ''}${esc(i.title)}</b>${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <span class="muted">${esc(i.equipment_tag)}</span>` : ''}
+          <div class="small muted">${esc(i.staff_name)} · <span class="reprog-motivo">${esc(i.result_note || 'sem motivo')}</span></div></div>
+        ${gestor ? `<span class="acoes"><button class="btn btn-sm btn-primario" data-reprog="${i.id}"><i data-lucide="calendar-plus"></i> Reprogramar</button>
+          <button class="btn btn-sm btn-texto" data-dispensar="${i.id}">Não reprogramar</button></span>` : ''}</li>`).join('')}</ul></div></div>`;
+  };
+  boxReprog.addEventListener('click', async (ev) => {
+    const r = ev.target.closest('[data-reprog]');
+    if (r) { abrirReprogramar({ item: pendentes.find((x) => x.id === r.dataset.reprog), colabs, depois: irPara }); return; }
+    const d = ev.target.closest('[data-dispensar]'); if (!d) return;
+    const i = pendentes.find((x) => x.id === d.dataset.dispensar);
+    if (!(await confirmar({ titulo: 'Não reprogramar', mensagem: `"<b>${esc(i.title)}</b>" (${esc(i.staff_name)}, ${diaCurto(i.scheduled_date)}) sai desta lista e não volta para a programação.${i.pending_task_id ? ' A pendência continua aberta na lista de pendências.' : ''}`, botao: 'Não reprogramar' }))) return;
+    try { await pg.dispensar(i.id); toast('Pronto: não vai ser reprogramada.'); carregar(); } catch (err) { toast(traduzirErro(err), 'erro'); }
+  });
+
   const desenhar = () => {
+    desenharReprog();
     const hoje = hojeISO();
     const fimDeSemana = itens.some((i) => [5, 6].includes((dataDe(i.scheduled_date).getDay() + 6) % 7));
     const dias = Array.from({ length: fimDeSemana ? 7 : 5 }, (_, k) => addDias(semana, k));
@@ -94,7 +119,7 @@ export async function render(el) {
       const s = pg.STATUS_PROG[i.status];
       const atrasada = i.status === 'programada' && i.scheduled_date < hoje;
       return `<button class="ativ ${i.status}${atrasada ? ' atrasada' : ''}" data-item="${i.id}" title="${esc(s.nome)}${i.result_note ? ` — ${esc(i.result_note)}` : ''}">
-        <i data-lucide="${s.icone}"></i><span class="ativ-txt">${i.work_order_number ? `<span class="ativ-os">${esc(i.work_order_number)}</span> ` : ''}${esc(i.title)}${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <b>${esc(i.equipment_tag)}</b>` : ''}</span></button>`;
+        <i data-lucide="${s.icone}"></i><span class="ativ-txt">${i.rescheduled_from_id ? `<span class="ativ-reprog" title="Reprogramada de ${diaCurto(i.rescheduled_from_date || i.scheduled_date)}">↻</span> ` : ''}${i.status === 'nao_feita' && i.rescheduled_to_date ? `<span class="ativ-reprog">→ ${diaCurto(i.rescheduled_to_date)}</span> ` : ''}${i.work_order_number ? `<span class="ativ-os">${esc(i.work_order_number)}</span> ` : ''}${esc(i.title)}${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <b>${esc(i.equipment_tag)}</b>` : ''}</span></button>`;
     };
 
     kpis.innerHTML = `
@@ -141,7 +166,7 @@ export async function render(el) {
     const add = ev.target.closest('[data-add]');
     if (add) { abrirProgramar({ colabs, staffId: add.dataset.add, dia: add.dataset.dia, itens, depois: carregar }); return; }
     const it = ev.target.closest('[data-item]');
-    if (it) abrirAtividade({ item: itens.find((i) => i.id === it.dataset.item), colabs, gestor, depois: carregar });
+    if (it) abrirAtividade({ item: itens.find((i) => i.id === it.dataset.item), colabs, gestor, depois: irPara });
   });
   await carregar();
 }
@@ -290,6 +315,8 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
           ${i.pending_status ? `· ${esc(pe.STATUS_PEND[i.pending_status]?.nome || '')}` : ''}</div>` : ''}
         ${i.work_order_id ? `<div class="small" style="margin-top:6px"><a href="#/ordens/${i.work_order_id}"><i data-lucide="clipboard-list" style="width:14px;height:14px;vertical-align:-2px"></i> Ver a ${esc(i.work_order_number || 'OS')}</a>
           ${badgeOS(i.work_order_status)}</div>` : ''}
+        ${i.rescheduled_from_id ? `<div class="small" style="margin-top:6px"><span class="ativ-reprog">↻</span> Reprogramada: não foi feita em ${diaCurto(i.rescheduled_from_date || i.scheduled_date)}.</div>` : ''}
+        ${i.rescheduled_to_date ? `<div class="small" style="margin-top:6px"><span class="ativ-reprog">→</span> Reprogramada para <b>${diaCurto(i.rescheduled_to_date)}</b> (${esc(i.rescheduled_to_staff || '')}).</div>` : ''}
         ${i.status !== 'programada' ? `<div class="small muted" style="margin-top:6px">Registrado por ${esc(i.done_by_name || '—')}${i.done_at ? ` em ${new Date(i.done_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}</div>` : ''}
       </div>
       ${registra ? `
@@ -297,6 +324,12 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
         <div class="abas-acesso" role="radiogroup">${Object.entries(pg.STATUS_PROG).map(([k, s]) => `<button type="button" data-res="${k}" class="${i.status === k ? 'ativa' : ''}"><i data-lucide="${s.icone}" style="width:15px;height:15px;vertical-align:-3px"></i> ${s.nome}</button>`).join('')}</div></div>
       <div class="campo"><label for="at-obs" id="at-obs-rot">Observação</label><textarea id="at-obs" name="obs" rows="2" maxlength="1000" placeholder="Opcional">${esc(i.result_note || '')}</textarea></div>
       ${pendAberta || ligar ? '<label class="check-linha oculto" id="at-conc-l"><input type="checkbox" id="at-conc" checked> Concluir também a pendência (o problema foi resolvido)</label>' : ''}
+      ${gestor && !i.rescheduled_to_id ? `<fieldset class="bloco-reprog oculto" id="at-reprog"><legend><label class="check-linha" style="margin:0"><input type="checkbox" id="at-rp" checked> <b>Reprogramar</b></label></legend>
+        <div class="grade grade-form">
+          <div class="campo"><label for="at-rp-dia">Novo dia</label><input id="at-rp-dia" type="date" value="${pg.proxDiaUtil(i.scheduled_date > hojeISO() ? i.scheduled_date : hojeISO())}"></div>
+          <div class="campo"><label for="at-rp-col">Colaborador</label><select id="at-rp-col">${colabs.filter((c) => c.active).map((c) => `<option value="${c.id}" ${c.id === i.staff_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+        </div>
+        <span class="small muted">Desmarque se não precisa voltar. Ela fica na lista "Não feitas a reprogramar" até você decidir.</span></fieldset>` : ''}
       <div class="alerta info oculto" id="at-os-aviso"><i data-lucide="clipboard-list"></i><div>A OS não muda sozinha. Depois de salvar, abra a OS para
         lançar a mão de obra e <b>finalizar o atendimento</b> (o que foi feito).</div></div>`
     : `<p class="muted small" style="margin:0">Só quem programa ou o próprio colaborador registram o resultado.</p>`}
@@ -328,6 +361,7 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
     const temPend = v.startsWith('pe:') && (f.pend && !f.pend.disabled ? f.pend.selectedOptions[0]?.dataset.aberta === '1' : pendAberta);
     el.querySelector('#at-conc-l')?.classList.toggle('oculto', res !== 'feita' || !temPend);
     el.querySelector('#at-os-aviso')?.classList.toggle('oculto', res !== 'feita' || !v.startsWith('os:'));
+    el.querySelector('#at-reprog')?.classList.toggle('oculto', res !== 'nao_feita');
   };
   el.querySelectorAll('[data-res]').forEach((b) => b.addEventListener('click', () => { res = b.dataset.res; ajustar(); }));
   ajustar();
@@ -377,12 +411,53 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
         try { await pe.salvar(pendId, { status: 'concluida', done_note: d.result_note }); aviso = 'Atividade feita e pendência concluída.'; }
         catch (err) { toast(`Atividade salva, mas a pendência não foi concluída: ${traduzirErro(err)}`, 'erro'); }
       }
-      toast(aviso); fechar(); depois?.();
+      let novoDia = null;
+      if (res === 'nao_feita' && el.querySelector('#at-rp')?.checked) {
+        const dia = el.querySelector('#at-rp-dia').value;
+        if (!dia) throw new Error('Escolha o novo dia ou desmarque "Reprogramar".');
+        try {
+          await pg.reprogramar({ ...i, pending_task_id: pendId, work_order_id: osId }, { dia, staffId: el.querySelector('#at-rp-col').value });
+          aviso = `Não feita. Reprogramada para ${diaCurto(dia)}.`; novoDia = dia;
+        } catch (err) { toast(`Registrado como não feita, mas não foi reprogramada: ${traduzirErro(err)}`, 'erro'); }
+      }
+      toast(aviso); fechar(); depois?.(novoDia);
     } catch (err) {
       el.querySelector('#msg-ativ').innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;
       btn.disabled = false;
     }
   });
+}
+
+// ---------------------------------------------------------------------
+// Reprogramar uma não feita (da lista "Não feitas a reprogramar")
+// ---------------------------------------------------------------------
+function abrirReprogramar({ item: i, colabs, depois }) {
+  const { el, fechar } = abrirModal({
+    titulo: 'Reprogramar atividade',
+    html: `<form id="f-reprog" class="grade" style="gap:14px">
+      <div><b>${i.work_order_number ? `<span class="ativ-os">${esc(i.work_order_number)}</span> ` : ''}${esc(i.title)}</b>
+        <div class="small muted">Não feita em ${diaCurto(i.scheduled_date)} por ${esc(i.staff_name)}${i.equipment_tag ? ` · ${esc(i.equipment_tag)}` : ''}</div>
+        <div class="small" style="margin-top:4px">Motivo: ${esc(i.result_note || '—')}</div></div>
+      <div class="grade grade-form">
+        <div class="campo"><label for="rp-dia">Novo dia *</label><input id="rp-dia" name="dia" type="date" required value="${pg.proxDiaUtil(hojeISO())}"></div>
+        <div class="campo"><label for="rp-col">Colaborador *</label><select id="rp-col" name="col">${colabs.filter((c) => c.active).map((c) => `<option value="${c.id}" ${c.id === i.staff_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      </div>
+      <p class="small muted" style="margin:0">A atividade nova continua ligada à mesma ${i.work_order_id ? 'OS' : i.pending_task_id ? 'pendência' : 'descrição'}.</p>
+      <div id="msg-reprog"></div></form>`,
+    rodape: '<button class="btn" data-fechar>Voltar</button><button class="btn btn-primario" type="submit" form="f-reprog"><i data-lucide="calendar-plus"></i> Reprogramar</button>',
+  });
+  el.querySelector('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = el.querySelector('[type=submit]'); btn.disabled = true;
+    try {
+      await pg.reprogramar(i, { dia: ev.target.dia.value, staffId: ev.target.col.value });
+      toast(`Reprogramada para ${diaCurto(ev.target.dia.value)}.`); fechar(); depois?.(ev.target.dia.value);
+    } catch (err) {
+      el.querySelector('#msg-reprog').innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;
+      btn.disabled = false;
+    }
+  });
+  icones();
 }
 
 // ---------------------------------------------------------------------

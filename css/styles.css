@@ -1693,3 +1693,16 @@ body.com-dica-app { padding-bottom: 240px; }
 }
 @media (max-width: 900px) { .kanban-col { max-height: none; overflow: visible; } }
 #pe-st { width: auto; min-width: 220px; max-width: 100%; }
+
+/* Reprogramar o que não foi feito */
+.card-reprog { border-left: 4px solid #d93025; }
+.lista-reprog { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lista-reprog li { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--borda, #e5e9f0); }
+.lista-reprog li:last-child { border-bottom: 0; padding-bottom: 0; }
+.reprog-dia { display: grid; min-width: 64px; font-weight: 700; color: #b3261e; line-height: 1.2; }
+.reprog-txt { flex: 1 1 260px; min-width: 0; }
+.reprog-motivo { color: #b3261e; }
+.lista-reprog .acoes { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.ativ-reprog { display: inline-block; font-size: .78em; font-weight: 700; color: #a15c00; background: #fff1d6; border-radius: 6px; padding: 0 5px; }
+.bloco-reprog { border: 1px solid #f3c98b; background: #fff8ec; border-radius: 12px; padding: 10px 16px 14px; margin: 0; display: grid; gap: 10px; }
+.bloco-reprog > legend { padding: 0 6px; color: #a15c00; }
