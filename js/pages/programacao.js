@@ -8,6 +8,7 @@ import { esc, icones, toast, traduzirErro, abrirModal, vazio, fmtData, hojeISO, 
 import * as pg from '../services/programacao.js';
 import * as pe from '../services/pendencias.js';
 import { listarEquipamentos } from '../services/equipamentos.js';
+import { listar as listarOS, STATUS_OS, TIPO_OS } from '../services/ordens.js';
 import { equipamentosParaEscolher } from '../plantas.js';
 import { excecoes } from '../services/indicadores.js';
 import { imprimirFichas } from './ficha-semanal.js';
@@ -18,6 +19,9 @@ const segundaDe = (iso) => { const d = dataDe(iso).getDay(); return addDias(iso,
 const diaCurto = (iso) => `${DIAS[dataDe(iso).getDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
 const esp = (k) => (k && pe.ESPECIALIDADE[k] ? pe.ESPECIALIDADE[k].nome : '');
+// OS que ainda podem ir para a programação
+const OS_ABERTAS = ['aberta', 'aprovada', 'planejada', 'em_execucao', 'aguardando_pecas', 'aguardando_terceiros'];
+const badgeOS = (st) => (st && STATUS_OS[st] ? `<span class="badge ${STATUS_OS[st].classe}">${esc(STATUS_OS[st].nome)}</span>` : '');
 
 export async function render(el) {
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
@@ -90,7 +94,7 @@ export async function render(el) {
       const s = pg.STATUS_PROG[i.status];
       const atrasada = i.status === 'programada' && i.scheduled_date < hoje;
       return `<button class="ativ ${i.status}${atrasada ? ' atrasada' : ''}" data-item="${i.id}" title="${esc(s.nome)}${i.result_note ? ` — ${esc(i.result_note)}` : ''}">
-        <i data-lucide="${s.icone}"></i><span class="ativ-txt">${esc(i.title)}${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <b>${esc(i.equipment_tag)}</b>` : ''}</span></button>`;
+        <i data-lucide="${s.icone}"></i><span class="ativ-txt">${i.work_order_number ? `<span class="ativ-os">${esc(i.work_order_number)}</span> ` : ''}${esc(i.title)}${i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` <b>${esc(i.equipment_tag)}</b>` : ''}</span></button>`;
     };
 
     kpis.innerHTML = `
@@ -146,8 +150,10 @@ export async function render(el) {
 // Programar atividade (pendência da lista ou outra atividade)
 // ---------------------------------------------------------------------
 async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
-  const [pends, eqs] = await Promise.all([pe.listar(), listarEquipamentos()]);
+  const [pends, eqs, oss, osProg] = await Promise.all([pe.listar(), listarEquipamentos(), listarOS().catch(() => []), pg.osProgramadas().catch(() => [])]);
   const abertas = pends.filter((p) => pe.ABERTAS.includes(p.status));
+  const progOS = new Map(); osProg.forEach((x) => { if (!progOS.has(x.work_order_id)) progOS.set(x.work_order_id, x); });
+  const osAbertas = oss.filter((o) => OS_ABERTAS.includes(o.status));
   const ativos = colabs.filter((c) => c.active);
   const { el, fechar } = abrirModal({
     titulo: 'Programar atividade', largo: true,
@@ -157,7 +163,7 @@ async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
           ${ativos.map((c) => `<option value="${c.id}" ${c.id === staffId ? 'selected' : ''}>${esc(c.name)}${c.job_title ? ` (${esc(c.job_title)})` : ''}</option>`).join('')}</select></div>
         <div class="campo"><label for="pr-dia">Dia *</label><input id="pr-dia" name="dia" type="date" required value="${dia}"></div>
         <div class="campo"><label>O que vai fazer</label>
-          <div class="abas-acesso" role="tablist"><button type="button" class="ativa" data-tipo="pend">Pendência da lista</button><button type="button" data-tipo="livre">Outra atividade</button></div></div>
+          <div class="abas-acesso" role="tablist"><button type="button" class="ativa" data-tipo="pend">Pendência</button><button type="button" data-tipo="os">OS</button><button type="button" data-tipo="livre">Outra</button></div></div>
       </div>
       <div id="pr-pend" class="grade" style="gap:10px">
         <div class="filtros-prog">
@@ -166,6 +172,14 @@ async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
           <label class="check-linha"><input type="checkbox" id="pr-livres" checked> Esconder as já programadas</label>
         </div>
         <div class="lista-escolha" id="pr-lista" role="listbox" aria-label="Pendências abertas"></div>
+      </div>
+      <div id="pr-os" class="grade oculto" style="gap:10px">
+        <div class="filtros-prog">
+          <input id="pr-os-busca" type="search" placeholder="Buscar por número, TAG ou texto…" aria-label="Buscar OS">
+          <select id="pr-os-tipo" aria-label="Tipo de OS"><option value="">Todos os tipos</option>${Object.entries(TIPO_OS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select>
+          <label class="check-linha"><input type="checkbox" id="pr-os-livres" checked> Esconder as já programadas</label>
+        </div>
+        <div class="lista-escolha" id="pr-os-lista" role="listbox" aria-label="Ordens de serviço em aberto"></div>
       </div>
       <div id="pr-livre" class="grade grade-form oculto">
         <div class="campo campo-largo"><label for="pr-tit">Atividade *</label><input id="pr-tit" name="tit" maxlength="300" placeholder="Ex.: Preventiva + lubrificação G01"></div>
@@ -179,6 +193,25 @@ async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
   const f = el.querySelector('form');
   let tipo = 'pend';
   const escolhidas = new Set();
+  const osEscolhidas = new Set();
+  const listaOS = el.querySelector('#pr-os-lista');
+  const desenharOS = () => {
+    const t = el.querySelector('#pr-os-busca').value.trim().toLowerCase();
+    const tp = el.querySelector('#pr-os-tipo').value;
+    const ordemPri = { urgente: 0, alta: 1, media: 2, baixa: 3 };
+    const r = osAbertas.filter((o) => (!tp || o.type === tp)
+      && (!el.querySelector('#pr-os-livres').checked || !progOS.has(o.id) || osEscolhidas.has(o.id))
+      && (!t || [o.number, o.title, o.equipment_tag, o.equipment_name].some((v) => String(v || '').toLowerCase().includes(t))))
+      .sort((a, b) => (ordemPri[a.priority] - ordemPri[b.priority]) || String(a.due_date || '9').localeCompare(String(b.due_date || '9')) || String(a.number).localeCompare(String(b.number)));
+    listaOS.innerHTML = r.length ? r.slice(0, 200).map((o) => { const pr = progOS.get(o.id); return `<label class="escolha ${osEscolhidas.has(o.id) ? 'sel' : ''}">
+        <input type="checkbox" value="${o.id}" ${osEscolhidas.has(o.id) ? 'checked' : ''}>
+        <span><b>${esc(o.number)}</b> · <b>${esc(o.equipment_tag || '')}</b> ${esc(o.title)}
+          <span class="small muted">${[TIPO_OS[o.type], STATUS_OS[o.status]?.nome, o.due_date ? `prazo ${fmtData(o.due_date).slice(0, 5)}` : '', pr ? `já programada ${diaCurto(pr.scheduled_date)} · ${pr.staff_name}` : ''].filter(Boolean).map(esc).join(' · ')}</span></span></label>`; }).join('')
+      : '<p class="muted small" style="margin:8px">Nenhuma OS em aberto com esses filtros.</p>';
+    el.querySelector('#pr-sel-n').textContent = tipo === 'os' && osEscolhidas.size ? `${osEscolhidas.size} selecionada${osEscolhidas.size === 1 ? '' : 's'}` : '';
+  };
+  listaOS.addEventListener('change', (ev) => { const v = ev.target.value; if (ev.target.checked) osEscolhidas.add(v); else osEscolhidas.delete(v); desenharOS(); });
+  ['#pr-os-busca', '#pr-os-tipo', '#pr-os-livres'].forEach((x) => el.querySelector(x).addEventListener(x === '#pr-os-busca' ? 'input' : 'change', desenharOS));
   const lista = el.querySelector('#pr-lista');
   const desenharLista = () => {
     const c = colabs.find((x) => x.id === f.col.value);
@@ -203,8 +236,9 @@ async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
     el.querySelectorAll('[data-tipo]').forEach((x) => x.classList.toggle('ativa', x === b));
     el.querySelector('#pr-pend').classList.toggle('oculto', tipo !== 'pend');
     el.querySelector('#pr-livre').classList.toggle('oculto', tipo !== 'livre');
+    el.querySelector('#pr-os').classList.toggle('oculto', tipo !== 'os');
     f.tit.required = tipo === 'livre';
-    desenharLista();
+    if (tipo === 'os') desenharOS(); else desenharLista();
   }));
   desenharLista();
   f.addEventListener('submit', async (ev) => {
@@ -219,10 +253,17 @@ async function abrirProgramar({ colabs, staffId = '', dia, itens, depois }) {
           const p = abertas.find((x) => x.id === id);
           await pg.programar({ staff_id: f.col.value, scheduled_date: f.dia.value, position: pos++, title: p.title, pending_task_id: p.id, equipment_id: p.equipment_id });
         }
+      } else if (tipo === 'os') {
+        if (!osEscolhidas.size) throw new Error('Marque pelo menos uma OS da lista.');
+        for (const id of osEscolhidas) {
+          const o = osAbertas.find((x) => x.id === id);
+          await pg.programar({ staff_id: f.col.value, scheduled_date: f.dia.value, position: pos++, title: o.title, work_order_id: o.id, equipment_id: o.equipment_id });
+        }
       } else {
         await pg.programar({ staff_id: f.col.value, scheduled_date: f.dia.value, position: pos, title: f.tit.value.trim(), equipment_id: f.eq.value || null });
       }
-      toast(tipo === 'pend' && escolhidas.size > 1 ? `${escolhidas.size} atividades programadas.` : 'Atividade programada.');
+      const n = tipo === 'pend' ? escolhidas.size : tipo === 'os' ? osEscolhidas.size : 1;
+      toast(n > 1 ? `${n} atividades programadas.` : 'Atividade programada.');
       fechar(); depois?.();
     } catch (err) {
       el.querySelector('#msg-prog').innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;
@@ -247,15 +288,19 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
         <div class="small muted">${esc(i.staff_name)} · ${diaCurto(i.scheduled_date)}${i.equipment_tag ? ` · ${esc(i.equipment_tag)} — ${esc(i.equipment_name || '')}` : ''}</div>
         ${i.pending_task_id ? `<div class="small" style="margin-top:6px"><a href="#/pendencias/${i.pending_task_id}"><i data-lucide="list-todo" style="width:14px;height:14px;vertical-align:-2px"></i> Ver a pendência</a>
           ${i.pending_status ? `· ${esc(pe.STATUS_PEND[i.pending_status]?.nome || '')}` : ''}</div>` : ''}
+        ${i.work_order_id ? `<div class="small" style="margin-top:6px"><a href="#/ordens/${i.work_order_id}"><i data-lucide="clipboard-list" style="width:14px;height:14px;vertical-align:-2px"></i> Ver a ${esc(i.work_order_number || 'OS')}</a>
+          ${badgeOS(i.work_order_status)}</div>` : ''}
         ${i.status !== 'programada' ? `<div class="small muted" style="margin-top:6px">Registrado por ${esc(i.done_by_name || '—')}${i.done_at ? ` em ${new Date(i.done_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}</div>` : ''}
       </div>
       ${registra ? `
       <div class="campo"><label>Resultado</label>
         <div class="abas-acesso" role="radiogroup">${Object.entries(pg.STATUS_PROG).map(([k, s]) => `<button type="button" data-res="${k}" class="${i.status === k ? 'ativa' : ''}"><i data-lucide="${s.icone}" style="width:15px;height:15px;vertical-align:-3px"></i> ${s.nome}</button>`).join('')}</div></div>
       <div class="campo"><label for="at-obs" id="at-obs-rot">Observação</label><textarea id="at-obs" name="obs" rows="2" maxlength="1000" placeholder="Opcional">${esc(i.result_note || '')}</textarea></div>
-      ${pendAberta || ligar ? '<label class="check-linha oculto" id="at-conc-l"><input type="checkbox" id="at-conc" checked> Concluir também a pendência (o problema foi resolvido)</label>' : ''}`
+      ${pendAberta || ligar ? '<label class="check-linha oculto" id="at-conc-l"><input type="checkbox" id="at-conc" checked> Concluir também a pendência (o problema foi resolvido)</label>' : ''}
+      <div class="alerta info oculto" id="at-os-aviso"><i data-lucide="clipboard-list"></i><div>A OS não muda sozinha. Depois de salvar, abra a OS para
+        lançar a mão de obra e <b>finalizar o atendimento</b> (o que foi feito).</div></div>`
     : `<p class="muted small" style="margin:0">Só quem programa ou o próprio colaborador registram o resultado.</p>`}
-      ${ligar ? `<div class="campo"><label for="at-pend"><i data-lucide="link" style="width:14px;height:14px;vertical-align:-2px"></i> ${i.pending_task_id ? 'Pendência ligada' : 'Ligar a uma pendência'}</label>
+      ${ligar ? `<div class="campo"><label for="at-pend"><i data-lucide="link" style="width:14px;height:14px;vertical-align:-2px"></i> ${i.pending_task_id || i.work_order_id ? 'Ligada a' : 'Ligar a uma OS ou pendência'}</label>
         <select id="at-pend" name="pend" disabled><option value="">Carregando…</option></select>
         <span class="small muted" id="at-pend-dica"></span></div>` : ''}
       ${gestor ? `<details class="secao-det"${i.status === 'programada' ? '' : ' hidden'}><summary>Mudar dia ou colaborador</summary>
@@ -268,6 +313,8 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
       <button class="btn" data-fechar>Voltar</button>${registra ? '<button class="btn btn-primario" type="submit" form="f-ativ">Salvar</button>' : ''}`,
   });
   const f = el.querySelector('form');
+  // "Ver a OS" / "Ver a pendência": fecha a janela ao ir para a outra tela
+  el.querySelectorAll('a[href^="#/"]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); const h = a.getAttribute('href'); fechar(); location.hash = h; }));
   let res = i.status;
   const ajustar = () => {
     el.querySelectorAll('[data-res]').forEach((b) => b.classList.toggle('ativa', b.dataset.res === res));
@@ -277,23 +324,34 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
       el.querySelector('#at-obs-rot').textContent = res === 'nao_feita' ? 'Por que não foi feita? *' : 'Observação';
       obs.placeholder = res === 'nao_feita' ? 'Ex.: faltou peça; máquina não foi liberada pela produção' : res === 'feita' ? 'Opcional. Ex.: trocado o retentor' : 'Opcional';
     }
-    const temPend = f.pend ? !!f.pend.value && f.pend.selectedOptions[0]?.dataset.aberta === '1' : pendAberta;
+    const v = f.pend && !f.pend.disabled ? f.pend.value : i.work_order_id ? `os:${i.work_order_id}` : i.pending_task_id ? `pe:${i.pending_task_id}` : '';
+    const temPend = v.startsWith('pe:') && (f.pend && !f.pend.disabled ? f.pend.selectedOptions[0]?.dataset.aberta === '1' : pendAberta);
     el.querySelector('#at-conc-l')?.classList.toggle('oculto', res !== 'feita' || !temPend);
+    el.querySelector('#at-os-aviso')?.classList.toggle('oculto', res !== 'feita' || !v.startsWith('os:'));
   };
   el.querySelectorAll('[data-res]').forEach((b) => b.addEventListener('click', () => { res = b.dataset.res; ajustar(); }));
   ajustar();
   if (ligar) {
-    // pendências abertas do mesmo equipamento (sem equipamento: todas as abertas)
-    (i.equipment_id ? pe.doEquipamento(i.equipment_id) : pe.listar()).then((ps) => {
-      const abertas = ps.filter((p) => pe.ABERTAS.includes(p.status) && p.id !== i.pending_task_id)
+    // OS e pendências abertas do mesmo equipamento (sem equipamento: todas)
+    Promise.all([
+      (i.equipment_id ? pe.doEquipamento(i.equipment_id) : pe.listar()),
+      listarOS().then((l) => (i.equipment_id ? l.filter((o) => o.equipment_id === i.equipment_id) : l)),
+    ]).then(([ps, oss]) => {
+      const tagDe = (x) => (!i.equipment_id && x.equipment_tag ? `${x.equipment_tag} — ` : '');
+      const pend = ps.filter((p) => pe.ABERTAS.includes(p.status) && p.id !== i.pending_task_id)
         .sort((a, b) => String(a.equipment_tag || '').localeCompare(String(b.equipment_tag || '')) || a.title.localeCompare(b.title, 'pt-BR'));
-      const op = (p, sel) => `<option value="${p.id}" data-aberta="${pe.ABERTAS.includes(p.status) ? 1 : 0}" ${sel ? 'selected' : ''}>${esc(`${!i.equipment_id && p.equipment_tag ? `${p.equipment_tag} — ` : ''}${p.title}`)}${p.next_schedule_date && p.id !== i.pending_task_id ? ` (programada ${fmtData(p.next_schedule_date).slice(0, 5)})` : ''}</option>`;
-      f.pend.innerHTML = `<option value="">${i.pending_task_id ? 'Nenhuma (desligar)' : 'Nenhuma'}</option>
-        ${i.pending_task_id ? op({ id: i.pending_task_id, title: i.pending_title || 'Pendência atual', status: i.pending_status, equipment_tag: i.equipment_tag }, true) : ''}
-        ${abertas.map((p) => op(p, false)).join('')}`;
+      const ordens = oss.filter((o) => OS_ABERTAS.includes(o.status) && o.id !== i.work_order_id)
+        .sort((a, b) => String(a.number).localeCompare(String(b.number)));
+      const opP = (p, sel) => `<option value="pe:${p.id}" data-aberta="${pe.ABERTAS.includes(p.status) ? 1 : 0}" ${sel ? 'selected' : ''}>${esc(`${tagDe(p)}${p.title}`)}${p.next_schedule_date && !sel ? ` (programada ${fmtData(p.next_schedule_date).slice(0, 5)})` : ''}</option>`;
+      const opO = (o, sel) => `<option value="os:${o.id}" ${sel ? 'selected' : ''}>${esc(`${o.number} · ${tagDe(o)}${o.title}`)}${o.status && STATUS_OS[o.status] ? ` (${STATUS_OS[o.status].nome})` : ''}</option>`;
+      const atual = i.work_order_id ? opO({ id: i.work_order_id, number: i.work_order_number, title: i.work_order_title || i.title, status: i.work_order_status }, true)
+        : i.pending_task_id ? opP({ id: i.pending_task_id, title: i.pending_title || 'Pendência atual', status: i.pending_status }, true) : '';
+      f.pend.innerHTML = `<option value="">${atual ? 'Nenhuma (desligar)' : 'Nenhuma'}</option>${atual}
+        ${ordens.length ? `<optgroup label="Ordens de serviço">${ordens.map((o) => opO(o, false)).join('')}</optgroup>` : ''}
+        ${pend.length ? `<optgroup label="Pendências">${pend.map((p) => opP(p, false)).join('')}</optgroup>` : ''}`;
       f.pend.disabled = false;
-      el.querySelector('#at-pend-dica').textContent = abertas.length || i.pending_task_id ? ''
-        : (i.equipment_id ? 'Nenhuma pendência aberta para este equipamento.' : 'Nenhuma pendência aberta.');
+      el.querySelector('#at-pend-dica').textContent = ordens.length || pend.length || atual ? ''
+        : (i.equipment_id ? 'Nenhuma OS ou pendência aberta para este equipamento.' : 'Nenhuma OS ou pendência aberta.');
       f.pend.addEventListener('change', ajustar);
       ajustar();
     }).catch(() => { f.pend.innerHTML = '<option value="">Não foi possível carregar</option>'; });
@@ -308,10 +366,13 @@ function abrirAtividade({ item: i, colabs, gestor, depois }) {
     try {
       const d = { status: res, result_note: f.obs?.value.trim() || null };
       if (gestor && f.col && res === 'programada') Object.assign(d, { staff_id: f.col.value, scheduled_date: f.dia.value });
-      const pendId = f.pend && !f.pend.disabled ? (f.pend.value || null) : i.pending_task_id;
+      const lig = f.pend && !f.pend.disabled ? f.pend.value : null;
+      const pendId = lig === null ? i.pending_task_id || null : lig.startsWith('pe:') ? lig.slice(3) : null;
+      const osId = lig === null ? i.work_order_id || null : lig.startsWith('os:') ? lig.slice(3) : null;
       if (pendId !== (i.pending_task_id || null)) d.pending_task_id = pendId;
+      if (osId !== (i.work_order_id || null)) d.work_order_id = osId;
       await pg.alterar(i.id, d);
-      let aviso = res === 'feita' ? 'Atividade feita.' : res === 'nao_feita' ? 'Registrado: não feita.' : 'pending_task_id' in d ? (pendId ? 'Atividade ligada à pendência.' : 'Atividade desligada da pendência.') : 'Atividade salva.';
+      let aviso = res === 'feita' ? 'Atividade feita.' : res === 'nao_feita' ? 'Registrado: não feita.' : 'pending_task_id' in d || 'work_order_id' in d ? (pendId || osId ? `Atividade ligada à ${osId ? 'OS' : 'pendência'}.` : 'Atividade desligada.') : 'Atividade salva.';
       if (res === 'feita' && pendId && !el.querySelector('#at-conc-l')?.classList.contains('oculto') && el.querySelector('#at-conc')?.checked) {
         try { await pe.salvar(pendId, { status: 'concluida', done_note: d.result_note }); aviso = 'Atividade feita e pendência concluída.'; }
         catch (err) { toast(`Atividade salva, mas a pendência não foi concluída: ${traduzirErro(err)}`, 'erro'); }

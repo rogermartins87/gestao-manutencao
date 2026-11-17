@@ -14,7 +14,7 @@ const POR_LINHA = 5;
 
 function textoAtividade(i) {
   const tag = i.equipment_tag && !i.title.toUpperCase().includes(i.equipment_tag.toUpperCase()) ? ` ${i.equipment_tag}` : '';
-  return `${i.title}${tag}`;
+  return `${i.work_order_number ? `${i.work_order_number} · ` : ''}${i.title}${tag}`;
 }
 
 function folha({ colab, semana, itens, feriados }) {

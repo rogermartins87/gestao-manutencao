@@ -12,6 +12,7 @@ import * as pc from '../services/pecas.js';
 import { agendaDaOS } from '../services/preventiva.js';
 import { inspecaoDaOS, TECNICA } from '../services/preditiva.js';
 import { daOS as pendenciasDaOS, STATUS_PEND } from '../services/pendencias.js';
+import { daOS as programacaoDaOS, STATUS_PROG } from '../services/programacao.js';
 
 const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const agoraLocal = () => { const d = new Date(); d.setSeconds(0, 0); return paraLocal(d); };
@@ -211,7 +212,7 @@ async function abaDetalhes(corpo, { o }) {
   const [h, paradas, prev, insp] = await Promise.all([os.historico(o.id), paradasDaOS(o.id).catch(() => []),
     o.type === 'preventiva' ? agendaDaOS(o.id).catch(() => null) : null,
     o.type === 'preditiva' ? inspecaoDaOS(o.id).catch(() => null) : null]);
-  const pends = await pendenciasDaOS(o.id).catch(() => []);
+  const [pends, prog] = await Promise.all([pendenciasDaOS(o.id).catch(() => []), programacaoDaOS(o.id).catch(() => [])]);
   const podeParada = pode('downtime.write') && !paradas.some((p) => p.is_open);
   corpo.innerHTML = `<div class="grade grade-2">
     <div class="grade" style="gap:16px">
@@ -232,6 +233,12 @@ async function abaDetalhes(corpo, { o }) {
           <span class="badge ${STATUS_PEND[x.status].classe}">${esc(STATUS_PEND[x.status].nome)}</span>
           <span class="small muted">${esc(x.assigned_to_name || 'sem responsável')}</span></li>`).join('')}</ul>`
           : '<span class="muted small">Nenhuma. Use para o que depende de outra pessoa: comprar peça, pedir orçamento, chamar terceiro.</span>'}</div></div>
+      <div class="card"><div class="card-titulo"><h3><i data-lucide="calendar-range"></i> Programação semanal</h3>
+        <a class="btn btn-sm" href="#/programacao"><i data-lucide="calendar-plus"></i> Ver a programação</a></div>
+        <div class="card-corpo">${prog.length ? `<ul class="lista-linhas">${prog.map((x) => `<li><a href="#/programacao?semana=${x.scheduled_date}">${fmtData(x.scheduled_date)}</a>
+          · <b>${esc(x.staff_name)}</b> <span class="badge ${STATUS_PROG[x.status].classe}">${esc(STATUS_PROG[x.status].nome)}</span>
+          ${x.result_note ? `<div class="small muted">${esc(x.result_note)}</div>` : ''}</li>`).join('')}</ul>`
+          : '<span class="muted small">Ainda não programada. Na Programação semanal, use <b>+</b> → <b>Ordem de serviço</b> para colocá-la no dia de um colaborador.</span>'}</div></div>
       <div class="card"><div class="card-titulo"><h3><i data-lucide="octagon-pause"></i> Paradas do equipamento ligadas a esta OS</h3>
         ${podeParada ? `<a class="btn btn-sm" href="#/paradas/nova?os=${o.id}"><i data-lucide="plus"></i> Registrar parada</a>` : ''}</div>
         <div class="card-corpo">${paradas.length ? `<ul class="lista-linhas">${paradas.map((p) => `<li><a href="#/paradas/${p.id}">${fmtDataHora(p.started_at)}</a>

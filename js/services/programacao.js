@@ -27,10 +27,14 @@ export const daSemana = async (ini, fim) => {
   return store.planta ? r.filter((x) => !x.plant_id || x.plant_id === store.planta) : r;
 };
 export const daPendencia = async (id) => ok(await sb.from('vw_schedule_items').select('*').eq('pending_task_id', id).order('scheduled_date'));
+export const daOS = async (id) => ok(await sb.from('vw_schedule_items').select('*').eq('work_order_id', id).order('scheduled_date'));
+// OS que já têm atividade ainda programada (para "esconder as já programadas")
+export const osProgramadas = async () => ok(await sb.from('vw_schedule_items').select('work_order_id, scheduled_date, staff_name')
+  .not('work_order_id', 'is', null).eq('status', 'programada').order('scheduled_date'));
 
 export const programar = async (d) => ok(await sb.from('schedule_items').insert({
   staff_id: d.staff_id, scheduled_date: d.scheduled_date, position: d.position || 1, title: d.title,
-  equipment_id: d.equipment_id || null, pending_task_id: d.pending_task_id || null,
+  equipment_id: d.equipment_id || null, pending_task_id: d.pending_task_id || null, work_order_id: d.work_order_id || null,
 }).select('id').single());
 export async function alterar(id, d) {
   const r = ok(await sb.from('schedule_items').update(d).eq('id', id).select('id'));
