@@ -11,7 +11,7 @@ import * as hm from '../services/horimetros.js';
 import { abrirRegistro, grafico, badgeSituacao, fmtH } from './horimetros.js';
 import { listarDoEquipamento as osDoEquipamento, ENCERRADAS } from '../services/ordens.js';
 import { tabelaOS, podeAbrirOS } from './ordens.js';
-import { doEquipamento as paradasDoEquipamento, fmtDuracao } from '../services/paradas.js';
+import { doEquipamento as paradasDoEquipamento, fmtDuracao, ligacoes, ligarMaquinas, desligarMaquinas } from '../services/paradas.js';
 import { tabelaParadas } from './paradas.js';
 import { historicoEquipamento as pecasDoEquipamento, fmtQtd } from '../services/pecas.js';
 import { planosDoEquipamento } from '../services/preventiva.js';
@@ -278,8 +278,51 @@ async function abaParadas(corpo, e) {
     <div class="acoes" style="margin:0 0 12px;justify-content:space-between;align-items:center">
       <span class="muted">${lista.length ? `${lista.length} parada${lista.length === 1 ? '' : 's'} · ${fmtDuracao(total)} no total` : ''}</span>
       ${podeReg ? `<a class="btn btn-primario" href="#/paradas/nova?equipamento=${e.id}"><i data-lucide="plus"></i> Registrar parada</a>` : ''}</div>
-    <div class="card" id="tab-par-equip"></div>`;
+    <div class="card" id="tab-par-equip"></div>
+    <div id="maq-ligadas"></div>`;
   tabelaParadas(corpo.querySelector('#tab-par-equip'), lista, { semEquipamento: true });
+  await cardLigadas(corpo.querySelector('#maq-ligadas'), e);
+}
+
+// "Quando esta máquina para, também param: …" — usado no registro da parada
+async function cardLigadas(box, e) {
+  const [links, todos] = await Promise.all([ligacoes().catch(() => null), svc.listarEquipamentos()]);
+  if (!links) { box.innerHTML = ''; return; }
+  const podeLigar = pode('equipment.write');
+  const minhas = links.filter((l) => l.equipment_id === e.id);
+  if (!minhas.length && !podeLigar) { box.innerHTML = ''; return; }
+  const eq = (id) => todos.find((x) => x.id === id) || { tag: '?', name: '' };
+  const ja = new Set(minhas.map((l) => l.stops_equipment_id));
+  const opcoes = todos.filter((x) => x.id !== e.id && !ja.has(x.id) && x.status !== 'desativado')
+    .sort((a, b) => a.tag.localeCompare(b.tag, 'pt-BR', { numeric: true }));
+  box.innerHTML = `<div class="card secao"><div class="card-titulo"><h3><i data-lucide="link"></i> Máquinas ligadas</h3>
+      <span class="muted small">quando a ${esc(e.tag)} para, estas param junto</span></div>
+    <div class="card-corpo grade" style="gap:12px">
+      ${minhas.length ? `<ul class="lista-ligadas">${minhas.map((l) => `<li><a href="#/equipamentos/${l.stops_equipment_id}?aba=paradas"><b>${esc(eq(l.stops_equipment_id).tag)}</b> — ${esc(eq(l.stops_equipment_id).name)}</a>
+        ${podeLigar ? `<span class="acoes"><button class="btn btn-sm btn-texto" data-desligar="${l.id}" title="Desfazer a ligação"><i data-lucide="unlink"></i> Desligar</button></span>` : ''}</li>`).join('')}</ul>`
+        : '<p class="muted" style="margin:0">Nenhuma. Se outra máquina para quando esta para, ligue aqui: ao registrar a parada, a outra já vem marcada.</p>'}
+      ${podeLigar ? `<form id="f-ligar" class="linha-form">
+        <select name="outra" required aria-label="Máquina que para junto"><option value="">Também para junto…</option>
+          ${opcoes.map((x) => `<option value="${x.id}">${esc(x.tag)} — ${esc(x.name)}</option>`).join('')}</select>
+        <label class="check-linha small" style="white-space:nowrap"><input type="checkbox" name="volta" checked> nos dois sentidos</label>
+        <button class="btn" type="submit"><i data-lucide="link"></i> Ligar</button></form>` : ''}
+    </div></div>`;
+  const recarregar = () => cardLigadas(box, e).then(icones);
+  box.querySelector('#f-ligar')?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const outra = ev.target.outra.value; if (!outra) return;
+    try {
+      await ligarMaquinas(e.id, outra);
+      if (ev.target.volta.checked && !links.some((l) => l.equipment_id === outra && l.stops_equipment_id === e.id)) await ligarMaquinas(outra, e.id);
+      toast(`Ligado: quando a ${e.tag} parar, a ${eq(outra).tag} já vem marcada.`); recarregar();
+    } catch (err) { toast(traduzirErro(err), 'erro'); }
+  });
+  box.querySelector('.lista-ligadas')?.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-desligar]'); if (!b) return;
+    const l = minhas.find((x) => x.id === b.dataset.desligar);
+    if (!confirm(`Desfazer a ligação ${e.tag} → ${eq(l.stops_equipment_id).tag}? As paradas já registradas não mudam.`)) return;
+    try { await desligarMaquinas(l.id); toast('Ligação desfeita.'); recarregar(); } catch (err) { toast(traduzirErro(err), 'erro'); }
+  });
 }
 
 async function abaPreventiva(corpo, e) {

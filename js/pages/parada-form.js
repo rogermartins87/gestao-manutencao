@@ -18,8 +18,8 @@ export async function render(el) {
   const osParam = idDaUrl(params.get('os'));
   const podeCriarOS = !osParam && (pode('work_order.manage') || pode('work_order.request'));
   const gestor = pode('work_order.manage');
-  const [equipamentos, motivos, osOrigem, resp] = await Promise.all([listarEquipamentos(), pr.motivos(), osParam ? lerOS(osParam) : null,
-    podeCriarOS && gestor ? responsaveis().catch(() => []) : []]);
+  const [equipamentos, motivos, osOrigem, resp, ligacoes] = await Promise.all([listarEquipamentos(), pr.motivos(), osParam ? lerOS(osParam) : null,
+    podeCriarOS && gestor ? responsaveis().catch(() => []) : [], pr.ligacoes().catch(() => [])]);
   const tipos = gestor ? Object.entries(TIPO_OS) : [['corretiva', 'Corretiva']];
   const eqInicial = osOrigem?.equipment_id || idDaUrl(params.get('equipamento')) || '';
   const ativos = equipamentosParaEscolher(equipamentos, eqInicial).filter((e) => e.status !== 'desativado');
@@ -45,6 +45,10 @@ export async function render(el) {
         <div class="campo"><label for="p-ini">Início da parada *</label><input id="p-ini" name="ini" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>
         <div class="campo"><label for="p-os">Ordem de serviço ligada</label><select id="p-os" name="os"><option value="">Nenhuma</option></select></div>
       </div>
+      <fieldset class="bloco-ligadas oculto" id="bloco-ligadas"><legend><i data-lucide="link"></i> Também pararam</legend>
+        <p class="muted small" style="margin:0 0 10px">Esta máquina está ligada a outra: quando uma para, a outra para junto. A parada da outra é registrada
+          como <b>"Parada por outro equipamento"</b>. Ela conta na disponibilidade, mas não no MTTR nem no MTBF, e não precisa de OS.</p>
+        <div id="lista-ligadas"></div></fieldset>
       ${podeCriarOS ? `<fieldset class="bloco-nova-os oculto" id="bloco-nova-os"><legend><i data-lucide="clipboard-plus"></i> Nova ordem de serviço</legend>
         <p class="muted small" style="margin:0 0 12px">A OS é aberta junto com a parada, para o mesmo equipamento, e fica ligada a ela.${gestor ? '' : ' A manutenção vai aprovar e programar a execução.'}</p>
         <div class="grade grade-form">
@@ -127,7 +131,22 @@ export async function render(el) {
     f.motivo.addEventListener('change', sugerir);
     f.n_tit.addEventListener('input', () => { tituloMexido = true; });
   }
+  // Máquinas ligadas: já vêm marcadas; a que já está parada não entra
+  const blocoLig = el.querySelector('#bloco-ligadas');
+  const mostrarLigadas = () => {
+    const ids = ligacoes.filter((l) => l.equipment_id === f.equip.value).map((l) => l.stops_equipment_id);
+    const eqs = equipamentos.filter((e) => ids.includes(e.id) && e.status !== 'desativado')
+      .sort((a, b) => a.tag.localeCompare(b.tag, 'pt-BR', { numeric: true }));
+    blocoLig.classList.toggle('oculto', !eqs.length);
+    el.querySelector('#lista-ligadas').innerHTML = eqs.map((e) => {
+      const parada = ['parado', 'em_manutencao'].includes(e.status);
+      return `<label class="check-linha"><input type="checkbox" name="ligada" value="${e.id}" ${parada ? 'disabled' : 'checked'}>
+        <b>${esc(e.tag)}</b> — ${esc(e.name)}${parada ? ' <span class="badge perigo">já está parada</span>' : ''}</label>`;
+    }).join('');
+  };
   f.equip.addEventListener('change', carregarOS);
+  f.equip.addEventListener('change', mostrarLigadas);
+  mostrarLigadas();
   f.terminou.addEventListener('change', () => {
     const t = f.terminou.checked;
     el.querySelector('#bloco-fim').classList.toggle('oculto', !t);
@@ -152,6 +171,13 @@ export async function render(el) {
       });
       if (!fim && f.fase.value) {
         try { await pr.mudarFase(r.id, f.fase.value, ini.toISOString()); } catch (err) { toast(`Parada registrada, mas a fase não foi salva: ${traduzirErro(err)}`, 'erro'); }
+      }
+      const ligadas = [...f.querySelectorAll('[name=ligada]:checked')].map((c) => c.value);
+      if (ligadas.length) {
+        const tags = equipamentos.filter((e) => ligadas.includes(e.id)).map((e) => e.tag).join(', ');
+        try { await pr.registrarLigadas(r.id, ligadas); toast(`${tags}: parada registrada junto.`); } catch (err) {
+          toast(`Parada registrada, mas a de ${tags} não foi: ${traduzirErro(err)}`, 'erro');
+        }
       }
       let osNova = null;
       if (f.os.value === NOVA_OS) {

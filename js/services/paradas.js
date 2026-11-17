@@ -25,9 +25,13 @@ export const listar = async ({ desde } = {}) => {
 };
 export const abertas = async () =>
   daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('ended_at', null).order('started_at')));
-// Paradas que ainda não têm OS ligada (responsabilidade dos planejadores)
+// Paradas que ainda não têm OS ligada (responsabilidade dos planejadores).
+// A parada causada por outra máquina não pede OS: a OS fica na máquina que quebrou.
 export const semOS = async () =>
-  daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('work_order_id', null).order('started_at', { ascending: false })));
+  daPlanta(ok(await sb.from('vw_downtime_events').select('*').is('work_order_id', null).is('caused_by_event_id', null).order('started_at', { ascending: false })));
+// Paradas de outras máquinas causadas por esta
+export const ligadasDaParada = async (id) =>
+  ok(await sb.from('vw_downtime_events').select('*').eq('caused_by_event_id', id).order('equipment_tag'));
 export const doEquipamento = async (id) =>
   ok(await sb.from('vw_downtime_events').select('*').eq('equipment_id', id).order('started_at', { ascending: false }));
 export const daOS = async (id) =>
@@ -57,6 +61,19 @@ export const adicionarFase = async (id, { fase, inicio, fim, obs }) =>
 
 export const encerrar = async (id, retorno, obs) =>
   ok(await sb.rpc('encerrar_parada', { p_parada: id, p_retorno: retorno, p_obs: obs || null }));
+
+// Máquinas que pararam junto: cria as paradas ligadas (mesmo início e tipo)
+export const registrarLigadas = async (id, equipamentos) =>
+  ok(await sb.rpc('registrar_paradas_ligadas', { p_parada: id, p_equipamentos: equipamentos }));
+// Confirma o retorno desta parada e das ligadas escolhidas, no mesmo horário
+export const encerrarComLigadas = async (id, retorno, obs, ligadas) =>
+  ok(await sb.rpc('encerrar_parada_com_ligadas', { p_parada: id, p_retorno: retorno, p_obs: obs || null, p_ligadas: ligadas }));
+
+// ---------- Máquinas ligadas ("quando esta para, também param") ----------
+export const ligacoes = async () => ok(await sb.from('equipment_links').select('*'));
+export const ligarMaquinas = async (de, para) =>
+  ok(await sb.from('equipment_links').insert({ equipment_id: de, stops_equipment_id: para }).select('id').single());
+export const desligarMaquinas = async (id) => ok(await sb.from('equipment_links').delete().eq('id', id));
 
 export const corrigirHorarios = async (id, inicio, fim, justificativa) =>
   ok(await sb.rpc('corrigir_horarios_parada', { p_parada: id, p_inicio: inicio, p_fim: fim || null, p_justificativa: justificativa }));

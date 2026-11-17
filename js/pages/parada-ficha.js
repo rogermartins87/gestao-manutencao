@@ -12,10 +12,11 @@ const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).t
 const agoraLocal = () => { const d = new Date(); d.setSeconds(0, 0); return paraLocal(d); };
 
 export async function render(el, [id]) {
-  const [p, fases] = await Promise.all([pr.ler(id), pr.fases(id)]);
+  const [p, fases, ligadas] = await Promise.all([pr.ler(id), pr.fases(id), pr.ligadasDaParada(id).catch(() => [])]);
   if (!p) { el.innerHTML = '<div class="alerta aviso">Parada não encontrada. <a href="#/paradas">Voltar</a></div>'; return; }
   document.getElementById('titulo-pagina').textContent = `Parada — ${p.equipment_tag}`;
   const recarregar = () => render(el, [id]).then(icones);
+  const abertasLigadas = ligadas.filter((x) => x.is_open);
   const podeEditar = pode('downtime.write');
   const info = (rot, val) => `<div><span class="rotulo">${esc(rot)}</span>${val}</div>`;
   const durFase = (f) => (new Date(f.ended_at || p.ended_at || Date.now()) - new Date(f.started_at)) / 36e5;
@@ -38,6 +39,9 @@ export async function render(el, [id]) {
     <a class="voltar" href="#/paradas"><i data-lucide="arrow-left"></i> Paradas</a>
     ${osPendente ? `<div class="alerta info"><i data-lucide="lock"></i><div>Para a máquina voltar a operar, a <a href="#/ordens/${osLigada.id}"><b>${esc(osLigada.number)}</b></a> precisa ser finalizada
       (hoje está <b>${esc(STATUS_OS[osLigada.status]?.nome || osLigada.status)}</b>${osLigada.status === 'atendida' ? `, aguardando ${esc(osLigada.requested_by_name || 'quem abriu')} finalizar` : ''}).</div></div>` : ''}
+    ${p.caused_by_event_id ? `<div class="alerta aviso"><i data-lucide="link"></i><div>Esta máquina parou porque a <b>${esc(p.cause_equipment_tag)}</b> parou.
+      <a href="#/paradas/${p.caused_by_event_id}"><b>Ver a parada da ${esc(p.cause_equipment_tag)}</b></a>${p.cause_work_order_number ? ` · OS <a href="#/ordens/${p.cause_work_order_id}"><b>${esc(p.cause_work_order_number)}</b></a>` : ''}.
+      Não precisa de OS aqui: o conserto fica registrado na máquina que quebrou.</div></div>` : ''}
     <div class="card ficha-topo ${p.is_open ? 'st-parado' : 'st-operando'}"><div class="card-corpo">
       <div class="ficha-cab">
         <div><div class="equip-tag grande">${esc(p.equipment_tag)}</div><h1>${esc(p.equipment_name)}</h1>
@@ -50,13 +54,20 @@ export async function render(el, [id]) {
         ${info('Reparo × espera', p.phases_count ? `<span><b>${pr.fmtDuracao(p.repair_hours)}</b> reparo</span><span class="small muted">${pr.fmtDuracao(p.waiting_hours)} esperando</span>` : '<span class="muted">sem fases registradas</span>')}
         ${info('Início', `<span>${fmtDataHora(p.started_at)}</span><span class="small muted">registrada por ${esc(p.created_by_name || '—')}</span>`)}
         ${info('Retorno à operação', p.ended_at ? `<span>${fmtDataHora(p.ended_at)}</span><span class="small muted">confirmado por ${esc(p.return_confirmed_by_name || '—')}</span>` : '<span class="muted">aguardando</span>')}
-        ${info('Ordem de serviço', p.work_order_id ? `<a href="#/ordens/${p.work_order_id}"><b>${esc(p.work_order_number)}</b></a>` : '<span class="muted">nenhuma</span>')}
+        ${info('Ordem de serviço', p.work_order_id ? `<a href="#/ordens/${p.work_order_id}"><b>${esc(p.work_order_number)}</b></a>`
+          : p.caused_by_event_id ? `<span class="muted">não precisa</span><span class="small muted">fica na ${esc(p.cause_equipment_tag)}</span>` : '<span class="muted">nenhuma</span>')}
       </div>
     </div></div>
     ${p.production_impact || p.notes || p.return_notes ? `<div class="card secao"><div class="card-corpo grade" style="gap:8px">
       ${p.production_impact ? `<div><b>Impacto na produção:</b> ${esc(p.production_impact)}</div>` : ''}
       ${p.notes ? `<div style="white-space:pre-wrap"><b>Observações:</b> ${esc(p.notes)}</div>` : ''}
       ${p.return_notes ? `<div><b>No retorno:</b> ${esc(p.return_notes)}</div>` : ''}</div></div>` : ''}
+    ${ligadas.length ? `<div class="card secao"><div class="card-titulo"><h3><i data-lucide="link"></i> Também pararam <span class="contador">${ligadas.length}</span></h3>
+        <span class="muted small">por causa desta parada</span></div>
+      <div class="card-corpo"><ul class="lista-ligadas">${ligadas.map((x) => `<li>
+        <a href="#/paradas/${x.id}"><b>${esc(x.equipment_tag)}</b> — ${esc(x.equipment_name)}</a>
+        ${x.is_open ? '<span class="badge perigo">Em aberto</span>' : `<span class="badge ativo">Voltou ${fmtDataHora(x.ended_at)}</span>`}
+        <span class="muted small">${pr.fmtDuracao(x.duration_hours)} parada</span></li>`).join('')}</ul></div></div>` : ''}
     <div class="card secao"><div class="card-titulo"><h3><i data-lucide="git-branch"></i> Fases</h3></div>
       ${fases.length ? `<div class="tabela-wrap"><table class="tabela responsiva"><thead><tr><th>Fase</th><th>Início</th><th>Fim</th><th>Duração</th><th>Observação</th></tr></thead><tbody>
         ${fases.map((f) => `<tr><td data-rotulo="Fase">${badgeFase(f.phase)}</td>
@@ -73,7 +84,7 @@ export async function render(el, [id]) {
   el.querySelector('.ficha-cab .acoes').addEventListener('click', (ev) => {
     const k = ev.target.closest('[data-acao]')?.dataset.acao; if (!k) return;
     if (k === 'fase') modalFase(p, fases, recarregar);
-    if (k === 'encerrar') modalEncerrar(p, recarregar);
+    if (k === 'encerrar') modalEncerrar(p, recarregar, abertasLigadas);
     if (k === 'nova-fase') modalFaseRetro(p, recarregar);
     if (k === 'editar') modalEditar(p, recarregar);
     if (k === 'horarios') modalHorarios(p, recarregar);
@@ -133,15 +144,23 @@ function modalFase(p, fases, depois) {
   });
 }
 
-function modalEncerrar(p, depois) {
+function modalEncerrar(p, depois, ligadas = []) {
   modal({
     titulo: `Encerrar parada — ${p.equipment_tag}`,
     campos: `<div class="alerta small"><i data-lucide="info"></i><div>Encerrar confirma que o equipamento <b>voltou a operar</b>. O status muda para "operando" e o tempo da parada para de contar.</div></div>
       <div class="campo"><label for="pm-ret">Retorno à operação em *</label><input id="pm-ret" name="ret" type="datetime-local" required value="${agoraLocal()}" max="${agoraLocal()}"></div>
-      <div class="campo"><label for="pm-obs2">Observação</label><input id="pm-obs2" name="obs" maxlength="1000" placeholder="Ex.: testada em carga por 30 min, sem ruído"></div>`,
+      <div class="campo"><label for="pm-obs2">Observação</label><input id="pm-obs2" name="obs" maxlength="1000" placeholder="Ex.: testada em carga por 30 min, sem ruído"></div>
+      ${ligadas.length ? `<fieldset class="bloco-ligadas"><legend><i data-lucide="link"></i> Voltaram junto</legend>
+        <p class="muted small" style="margin:0 0 8px">Desmarque a máquina que ainda não voltou. Ela fica parada e você encerra a parada dela depois.</p>
+        ${ligadas.map((x) => `<label class="check-linha"><input type="checkbox" name="ligada" value="${x.id}" checked> <b>${esc(x.equipment_tag)}</b> — ${esc(x.equipment_name)}</label>`).join('')}
+      </fieldset>` : ''}`,
     botao: 'Confirmar retorno', classe: 'btn-sucesso',
-    enviar: (f) => pr.encerrar(p.id, new Date(f.ret.value).toISOString(), f.obs.value.trim()),
-    sucesso: 'Parada encerrada. Equipamento de volta a operar.', depois,
+    enviar: (f) => {
+      const ret = new Date(f.ret.value).toISOString();
+      if (!ligadas.length) return pr.encerrar(p.id, ret, f.obs.value.trim());
+      return pr.encerrarComLigadas(p.id, ret, f.obs.value.trim(), [...f.querySelectorAll('[name=ligada]:checked')].map((c) => c.value));
+    },
+    sucesso: ligadas.length ? 'Parada encerrada. As máquinas marcadas voltaram a operar.' : 'Parada encerrada. Equipamento de volta a operar.', depois,
   });
 }
 
