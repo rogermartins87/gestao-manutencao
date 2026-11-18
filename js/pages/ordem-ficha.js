@@ -13,6 +13,7 @@ import { agendaDaOS } from '../services/preventiva.js';
 import { inspecaoDaOS, TECNICA } from '../services/preditiva.js';
 import { daOS as pendenciasDaOS, STATUS_PEND } from '../services/pendencias.js';
 import { daOS as programacaoDaOS, STATUS_PROG } from '../services/programacao.js';
+import * as pm from '../services/paim.js';
 
 const paraLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const agoraLocal = () => { const d = new Date(); d.setSeconds(0, 0); return paraLocal(d); };
@@ -26,7 +27,8 @@ export async function render(el, [id]) {
   const gestor = pode('work_order.manage');
   const executor = pode('work_order.execute') && o.assigned_to === eu;
   const encerrada = os.ENCERRADAS.includes(o.status);
-  const ctx = { o, eu, gestor, executor, encerrada, recarregar };
+  const chk = o.type === 'preventiva' ? await pm.checklistDaOS(o.id).catch(() => null) : null;
+  const ctx = { o, eu, gestor, executor, encerrada, recarregar, chk };
 
   // Botões de andamento
   const b = [];
@@ -47,6 +49,7 @@ export async function render(el, [id]) {
   if (!encerrada && (gestor || (st === 'aberta' && o.requested_by === eu))) b.push(['cancelar', 'circle-x', 'Cancelar OS', 'btn-texto']);
 
   const abas = [
+    ...(chk ? [{ id: 'checklist', titulo: `Checklist PAIM (${chk.answered_count}/${chk.items_count})`, icone: 'list-checks', fn: abaChecklist }] : []),
     { id: 'detalhes', titulo: 'Detalhes', icone: 'info', fn: abaDetalhes },
     { id: 'mao', titulo: `Mão de obra${o.labor_hours > 0 ? ` (${fmtNum(o.labor_hours, 1)} h)` : ''}`, icone: 'hard-hat', fn: abaMaoDeObra },
     { id: 'pecas', titulo: `${pode('costs.read') ? 'Peças e custos' : 'Peças'}${o.parts_count ? ` (${o.parts_count})` : ''}`, icone: 'package', fn: abaPecas },
@@ -208,7 +211,7 @@ export function formularioModal({ titulo, campos, botao, classe = 'btn-primario'
 // ---------------------------------------------------------------------
 // Abas
 // ---------------------------------------------------------------------
-async function abaDetalhes(corpo, { o }) {
+async function abaDetalhes(corpo, { o, chk }) {
   const [h, paradas, prev, insp] = await Promise.all([os.historico(o.id), paradasDaOS(o.id).catch(() => []),
     o.type === 'preventiva' ? agendaDaOS(o.id).catch(() => null) : null,
     o.type === 'preditiva' ? inspecaoDaOS(o.id).catch(() => null) : null]);
@@ -223,6 +226,9 @@ async function abaDetalhes(corpo, { o }) {
       ${prev ? `<div class="alerta info"><i data-lucide="calendar-check"></i><div>Gerada pelo plano preventivo
         <a href="#/preventiva/planos/${prev.plan_id}"><b>${esc(prev.plan_name)}</b></a> (vencimento nº ${prev.sequence}).
         Ao concluir, a próxima preventiva é agendada a partir da data de conclusão.</div></div>` : ''}
+      ${chk ? `<div class="alerta info"><i data-lucide="clipboard-check"></i><div>Gerada pelo PAIM
+        <a href="#/paim/${chk.paim_id}"><b>${esc(chk.paim_name)}</b></a> (revisão ${pm.revisao(chk.revision)}).
+        O checklist fica na aba <b>Checklist PAIM</b>. Ao finalizar a OS, a próxima data da máquina é marcada sozinha.</div></div>` : ''}
       ${insp ? `<div class="alerta info"><i data-lucide="activity"></i><div>Gerada pela inspeção de
         <a href="#/preditiva/inspecoes/${insp.id}"><b>${esc(TECNICA[insp.type].nome.toLowerCase())} de ${fmtDataHora(insp.performed_at)}</b></a>.
         Depois do reparo, registre uma nova inspeção para confirmar que voltou ao normal.</div></div>` : ''}
@@ -255,7 +261,91 @@ async function abaDetalhes(corpo, { o }) {
   </div>`;
   corpo.querySelector('#btn-pend-os')?.addEventListener('click', async () => {
     const { abrirPendencia } = await import('./pendencias.js');
-    abrirPendencia({ osId: o.id, depois: () => abaDetalhes(corpo, { o }).then(icones) });
+    abrirPendencia({ osId: o.id, depois: () => abaDetalhes(corpo, { o, chk }).then(icones) });
+  });
+}
+
+// ---------------------------------------------------------------------
+// Checklist do PAIM: item por item, OK ou Pendência (pendência vira pendência)
+// ---------------------------------------------------------------------
+const EDITA_CHECKLIST = ['aprovada', 'planejada', 'em_execucao', 'aguardando_pecas', 'aguardando_terceiros'];
+async function abaChecklist(corpo, { o, gestor, executor, chk, recarregar }) {
+  const its = await pm.itensDoChecklist(chk.id);
+  const pode_ = (gestor || executor) && EDITA_CHECKLIST.includes(o.status);
+  const falta = its.filter((i) => !i.result).length;
+  const linha = (i, n) => {
+    const travado = !!i.pending_task_id;
+    const nome = `r-${i.id}`;
+    return `<li class="chk-item ${i.result ? `chk-${i.result}` : ''}" data-id="${i.id}">
+      <span class="chk-num">${n}</span>
+      <div class="chk-txt"><b>${esc(i.item)}</b>${i.how_to ? `<span class="small muted d-bloco">${esc(i.how_to)}</span>` : ''}
+        ${pode_ && !travado ? `<input class="chk-nota ${i.result === 'pendencia' || i.note ? '' : 'oculto'}" maxlength="1000" value="${esc(i.note || '')}" placeholder="O que foi encontrado? (obrigatório na pendência)" aria-label="Observação do item ${n}">
+          <button type="button" class="btn-link chk-obs small ${i.result === 'pendencia' || i.note ? 'oculto' : ''}"><i data-lucide="message-square-plus"></i> Observação</button>`
+          : i.note ? `<span class="small d-bloco chk-nota-txt">${esc(i.note)}</span>` : ''}
+        ${travado ? `<span class="small d-bloco"><i data-lucide="list-todo" style="width:14px;height:14px;vertical-align:-2px"></i> Virou a pendência
+          <a href="#/pendencias/${i.pending_task_id}">${esc(i.item)}</a> <span class="badge ${STATUS_PEND[i.pending_status]?.classe || ''}">${esc(STATUS_PEND[i.pending_status]?.nome || '')}</span></span>` : ''}
+        ${i.answered_by_name && !pode_ ? `<span class="small muted d-bloco">${esc(i.answered_by_name)} · ${fmtDataHora(i.answered_at)}</span>` : ''}
+      </div>
+      <div class="chk-opcoes" role="radiogroup" aria-label="Resultado do item ${n}">
+        ${pode_ && !travado ? `<label class="chk-op op-ok"><input type="radio" name="${nome}" value="ok" ${i.result === 'ok' ? 'checked' : ''}> <i data-lucide="check"></i> OK</label>
+          <label class="chk-op op-pend"><input type="radio" name="${nome}" value="pendencia" ${i.result === 'pendencia' ? 'checked' : ''}> <i data-lucide="triangle-alert"></i> Pendência</label>`
+          : i.result === 'ok' ? '<span class="badge ativo"><i data-lucide="check"></i> OK</span>'
+          : i.result === 'pendencia' ? '<span class="badge aviso">Pendência</span>' : '<span class="badge inativo">Não marcado</span>'}
+      </div></li>`;
+  };
+  let n = 0;
+  corpo.innerHTML = `<div class="card"><div class="card-titulo"><h3><i data-lucide="list-checks"></i> Checklist do PAIM — ${esc(chk.paim_name)}
+      <span class="small muted">revisão ${pm.revisao(chk.revision)}</span></h3>
+      <span>${falta ? `<span class="badge aviso">Faltam ${falta}</span>` : '<span class="badge ativo">Completo</span>'}
+        ${Number(chk.pending_count) ? `<span class="badge aviso">${chk.pending_count} pendência${chk.pending_count == 1 ? '' : 's'}</span>` : ''}</span></div>
+    <div class="card-corpo">
+      ${pode_ ? `<p class="muted small" style="margin:0 0 12px">Marque <b>OK</b> ou <b>Pendência</b> em cada item. Toda pendência vira uma pendência no sistema, para ser resolvida depois.
+        Só dá para finalizar o atendimento com todos os itens marcados.</p>`
+        : !['concluida', 'cancelada', 'atendida'].includes(o.status) ? '<p class="muted small" style="margin:0 0 12px">Só o responsável pela OS ou quem planeja marca o checklist.</p>' : ''}
+      ${pm.AREAS.map((a) => { const l = its.filter((i) => i.area === a); return l.length ? `
+        <h4 class="paim-area-tit"><i data-lucide="${pm.AREA[a].icone}"></i> ${esc(pm.AREA[a].nome)}</h4>
+        <ol class="chk-lista">${l.map((i) => linha(i, ++n)).join('')}</ol>` : ''; }).join('')}
+      ${pode_ ? `<div id="msg-chk"></div><div class="acoes chk-acoes">
+        <button class="btn btn-primario" id="btn-chk-salvar"><i data-lucide="save"></i> Salvar checklist</button>
+        <button class="btn" id="btn-chk-ok"><i data-lucide="check-check"></i> Marcar os que faltam como OK</button></div>` : ''}
+    </div></div>`;
+  if (!pode_) return;
+  corpo.addEventListener('change', (ev) => {
+    const r = ev.target.closest('input[type=radio]'); if (!r) return;
+    const li = r.closest('.chk-item');
+    li.classList.remove('chk-ok', 'chk-pendencia'); li.classList.add(`chk-${r.value}`);
+    if (r.value === 'pendencia') mostrarNota(li);
+  });
+  const mostrarNota = (li) => {
+    const nota = li.querySelector('.chk-nota'); if (!nota) return;
+    nota.classList.remove('oculto'); li.querySelector('.chk-obs')?.classList.add('oculto'); nota.focus();
+  };
+  corpo.addEventListener('click', (ev) => { const b = ev.target.closest('.chk-obs'); if (b) mostrarNota(b.closest('.chk-item')); });
+  corpo.querySelector('#btn-chk-ok').addEventListener('click', () => {
+    corpo.querySelectorAll('.chk-item').forEach((li) => {
+      if (!li.querySelector('input[type=radio]:checked')) {
+        const ok = li.querySelector('input[value=ok]'); if (ok) { ok.checked = true; li.classList.add('chk-ok'); }
+      }
+    });
+  });
+  corpo.querySelector('#btn-chk-salvar').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget; btn.disabled = true;
+    const msg = corpo.querySelector('#msg-chk'); msg.innerHTML = '';
+    const lista = [...corpo.querySelectorAll('.chk-item')].filter((li) => li.querySelector('input[type=radio]')).map((li) => ({
+      id: li.dataset.id, result: li.querySelector('input[type=radio]:checked')?.value || null, note: li.querySelector('.chk-nota')?.value.trim() || null,
+    }));
+    const novas = lista.filter((x) => x.result === 'pendencia' && !its.find((i) => i.id === x.id).pending_task_id).length;
+    if (novas && !(await confirmar({ titulo: 'Criar pendências', mensagem: `${novas === 1 ? 'Um item marcado como Pendência vai virar' : `${novas} itens marcados como Pendência vão virar`} pendência no sistema. Depois disso, o item não volta para OK. Continuar?`, botao: 'Salvar' }))) {
+      btn.disabled = false; return;
+    }
+    try {
+      const criadas = await pm.registrarChecklist(chk.id, lista);
+      toast(criadas ? `Checklist salvo. ${criadas} pendência${criadas === 1 ? '' : 's'} criada${criadas === 1 ? '' : 's'}.` : 'Checklist salvo.');
+      recarregar();
+    } catch (err) {
+      msg.innerHTML = `<div class="alerta perigo">${esc(traduzirErro(err))}</div>`;
+      btn.disabled = false;
+    }
   });
 }
 

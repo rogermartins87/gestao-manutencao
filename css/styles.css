@@ -1706,3 +1706,54 @@ body.com-dica-app { padding-bottom: 240px; }
 .ativ-reprog { display: inline-block; font-size: .78em; font-weight: 700; color: #a15c00; background: #fff1d6; border-radius: 6px; padding: 0 5px; }
 .bloco-reprog { border: 1px solid #f3c98b; background: #fff8ec; border-radius: 12px; padding: 10px 16px 14px; margin: 0; display: grid; gap: 10px; }
 .bloco-reprog > legend { padding: 0 6px; color: #a15c00; }
+
+/* ---------- PAIM ---------- */
+.d-bloco { display: block; }
+.paim-area { border: 1px solid var(--borda); border-radius: var(--raio); padding: 10px 14px 14px; margin: 0; display: grid; gap: 10px; }
+.paim-area > legend { padding: 0 6px; font-weight: 700; color: var(--base-800); display: flex; align-items: center; gap: 6px; }
+.paim-area > legend svg { width: 16px; height: 16px; color: var(--acento-600); }
+.paim-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: pi; }
+.paim-item { display: flex; align-items: flex-start; gap: 8px; counter-increment: pi; }
+.paim-item::before { content: counter(pi); min-width: 22px; padding-top: 9px; font-weight: 700; color: var(--texto-3); font-variant-numeric: tabular-nums; text-align: right; }
+.paim-item-campos { flex: 1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px; }
+.paim-item-acoes { display: flex; gap: 2px; padding-top: 2px; }
+.paim-area > [data-novo] { justify-self: start; }
+.paim-maquinas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 6px 14px; max-height: 460px; overflow: auto; }
+.paim-maquinas li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--raio-sm); border: 1px solid transparent; }
+.paim-maquinas li.marcada { background: var(--acento-100); border-color: var(--borda); }
+.paim-maquinas li .check-linha { flex: 1; min-width: 0; }
+.paim-maquinas li .check-linha b { white-space: nowrap; }
+.paim-maquinas li .check-linha .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.paim-maquinas li .pm-data { width: 160px; flex: none; }
+.paim-maquinas li .pm-data:disabled { opacity: .35; }
+.paim-mesma-data { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+.paim-mesma-data input { width: 170px; }
+.paim-filtros { flex-wrap: wrap; }
+.paim-filtros .busca-wrap { flex: 1; min-width: 220px; }
+.paim-area-tit { display: flex; align-items: center; gap: 6px; margin: 16px 0 8px; font-size: .95rem; color: var(--base-800); }
+.paim-area-tit:first-child { margin-top: 0; }
+.paim-area-tit svg { width: 16px; height: 16px; color: var(--acento-600); }
+.paim-lista li span b { font-weight: 600; }
+.chk-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.chk-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--borda); border-radius: var(--raio-sm); background: var(--superficie); }
+.chk-item.chk-ok { border-color: #b7dcc3; background: #f3faf5; }
+.chk-item.chk-pendencia { border-color: #f3c98b; background: #fff8ec; }
+.chk-num { font-weight: 700; color: var(--texto-3); font-variant-numeric: tabular-nums; padding-top: 2px; text-align: right; }
+.chk-txt { display: grid; gap: 4px; }
+.chk-nota { margin-top: 4px; }
+.chk-opcoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.chk-op { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; border: 1px solid var(--borda-forte); border-radius: 99px; cursor: pointer; font-weight: 600; font-size: .88rem; background: var(--superficie); user-select: none; }
+.chk-op input { position: absolute; opacity: 0; pointer-events: none; }
+.chk-op svg { width: 15px; height: 15px; }
+.chk-op:focus-within { outline: 2px solid var(--acento-500); outline-offset: 2px; }
+.chk-op.op-ok:has(input:checked) { background: var(--sucesso); border-color: var(--sucesso); color: #fff; }
+.chk-op.op-pend:has(input:checked) { background: var(--aviso); border-color: var(--aviso); color: #fff; }
+.chk-acoes { margin-top: 16px; }
+@media (max-width: 720px) {
+  .paim-item-campos { grid-template-columns: 1fr; }
+  .chk-item { grid-template-columns: 22px minmax(0, 1fr); }
+  .chk-opcoes { grid-column: 2; justify-content: flex-start; }
+  .paim-maquinas { grid-template-columns: 1fr; }
+}
+.chk-obs { justify-self: start; display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 2px 0; color: var(--acento-600); cursor: pointer; font-weight: 600; }
+.chk-obs svg { width: 14px; height: 14px; }
