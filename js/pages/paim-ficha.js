@@ -14,6 +14,24 @@ const STATUS_CHK = {
   cancelado: { nome: 'Cancelado', classe: 'inativo' },
 };
 
+// Janela "Gerar OS" de uma máquina do PAIM (usada aqui e na ficha do equipamento)
+export async function abrirGerarOS(m, qtdItens) {
+  const pessoas = await responsaveis().catch(() => []);
+  formularioModal({
+    titulo: `Gerar OS do PAIM — ${m.equipment_tag}`,
+    campos: `<p style="margin:0">A OS de <b>${esc(m.paim_name)}</b> sai <b>aprovada</b>, com o checklist de ${qtdItens} itens (revisão ${pm.revisao(m.paim_revision)}). O técnico marca item por item na própria OS.</p>
+      <div class="grade grade-2">
+        <div class="campo"><label for="g-resp">Responsável</label><select id="g-resp" name="resp"><option value="">A definir</option>
+          ${pessoas.map((x) => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('')}</select></div>
+        <div class="campo"><label for="g-prazo">Prazo</label><input id="g-prazo" name="prazo" type="date" value="${m.next_due_date || ''}"></div>
+      </div>`,
+    botao: 'Gerar OS',
+    enviar: async (f) => { const os = await pm.gerarOS(m.id, f.resp.value || null, f.prazo.value || null); toast('OS gerada.'); location.hash = `#/ordens/${os}?aba=checklist`; },
+  });
+}
+
+export const STATUS_CHECK = STATUS_CHK;
+
 export async function render(el, [id]) {
   const p = await pm.ler(id);
   if (!p) { el.innerHTML = '<div class="alerta aviso">PAIM não encontrado. <a href="#/paim">Voltar</a></div>'; return; }
@@ -86,21 +104,9 @@ export async function render(el, [id]) {
     ],
   });
 
-  el.querySelector('#tab-maq').addEventListener('click', async (ev) => {
+  el.querySelector('#tab-maq').addEventListener('click', (ev) => {
     const g = ev.target.closest('[data-gerar]'); if (!g) return;
-    const m = maqs.find((x) => x.id === g.dataset.gerar);
-    const pessoas = await responsaveis().catch(() => []);
-    formularioModal({
-      titulo: `Gerar OS do PAIM — ${m.equipment_tag}`,
-      campos: `<p style="margin:0">A OS sai <b>aprovada</b>, com o checklist de ${p.items_count} itens (revisão ${pm.revisao(p.revision)}). O técnico marca item por item na própria OS.</p>
-        <div class="grade grade-2">
-          <div class="campo"><label for="g-resp">Responsável</label><select id="g-resp" name="resp"><option value="">A definir</option>
-            ${pessoas.map((x) => `<option value="${x.id}">${esc(x.full_name)}</option>`).join('')}</select></div>
-          <div class="campo"><label for="g-prazo">Prazo</label><input id="g-prazo" name="prazo" type="date" value="${m.next_due_date || ''}"></div>
-        </div>`,
-      botao: 'Gerar OS',
-      enviar: async (f) => { const os = await pm.gerarOS(m.id, f.resp.value || null, f.prazo.value || null); toast('OS gerada.'); location.hash = `#/ordens/${os}?aba=checklist`; },
-    });
+    abrirGerarOS(maqs.find((x) => x.id === g.dataset.gerar), p.items_count);
   });
 
   el.querySelector('.ficha-cab .acoes').addEventListener('click', async (ev) => {

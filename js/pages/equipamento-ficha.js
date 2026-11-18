@@ -16,6 +16,9 @@ import { tabelaParadas } from './paradas.js';
 import { historicoEquipamento as pecasDoEquipamento, fmtQtd } from '../services/pecas.js';
 import { planosDoEquipamento } from '../services/preventiva.js';
 import { tabelaPlanos } from './preventiva.js';
+import * as pm from '../services/paim.js';
+import { situacao as situacaoPaim } from './paim.js';
+import { abrirGerarOS, STATUS_CHECK } from './paim-ficha.js';
 import { pontosDoEquipamento, inspecoesDoEquipamento } from '../services/preditiva.js';
 import { tabelaPontos, tabelaInspecoes, abrirPonto } from './preditiva.js';
 import { doEquipamento as pendenciasDoEquipamento, ESPECIALIDADE, ABERTAS } from '../services/pendencias.js';
@@ -35,6 +38,7 @@ export async function render(el, [id]) {
     { id: 'pendencias', titulo: 'Pendências', icone: 'list-todo', fn: abaPendencias },
     { id: 'paradas', titulo: 'Paradas', icone: 'octagon-pause', fn: abaParadas },
     { id: 'preventiva', titulo: 'Preventiva', icone: 'calendar-check', fn: abaPreventiva },
+    { id: 'paim', titulo: 'PAIM', icone: 'clipboard-check', fn: abaPaim },
     { id: 'preditiva', titulo: 'Preditiva', icone: 'activity', fn: abaPreditiva },
     { id: 'pecas', titulo: 'Peças trocadas', icone: 'package', fn: abaPecas },
     ...(pode('audit.read') ? [{ id: 'alteracoes', titulo: 'Alterações', icone: 'file-clock', fn: abaAlteracoes }] : []),
@@ -335,6 +339,51 @@ async function abaPreventiva(corpo, e) {
       ${podeCriar ? `<a class="btn btn-primario" href="#/preventiva/planos/novo?equipamento=${e.id}"><i data-lucide="plus"></i> Novo plano</a>` : ''}</div>
     <div class="card" id="tab-planos-equip"></div>`;
   tabelaPlanos(corpo.querySelector('#tab-planos-equip'), lista, { semEquipamento: true });
+}
+
+async function abaPaim(corpo, e) {
+  const [ligacoesPaim, hist] = await Promise.all([pm.doEquipamento(e.id), pm.historicoDoEquipamento(e.id)]);
+  const paims = await Promise.all(ligacoesPaim.map((m) => pm.ler(m.paim_id)));
+  const gerar = pode('work_order.manage') && e.status !== 'desativado';
+  const planejar = pode('planning.write');
+  const info = (rot, val) => `<div><span class="rotulo">${esc(rot)}</span>${val}</div>`;
+  corpo.innerHTML = `
+    <div class="acoes" style="margin:0 0 12px;justify-content:space-between;align-items:center">
+      <span class="muted">${ligacoesPaim.length ? `Esta máquina está em ${ligacoesPaim.length} PAIM${ligacoesPaim.length === 1 ? '' : 's'}` : ''}</span>
+      <a class="btn" href="#/paim"><i data-lucide="clipboard-list"></i> Ver todos os PAIMs</a></div>
+    ${ligacoesPaim.length ? ligacoesPaim.map((m, i) => { const p = paims[i] || {}; return `
+      <div class="card secao"><div class="card-titulo"><h3><i data-lucide="clipboard-check"></i> <a href="#/paim/${m.paim_id}">${esc(m.paim_name)}</a>
+          <span class="small muted" style="font-weight:400">revisão ${pm.revisao(m.paim_revision)}</span>${m.paim_active ? '' : ' <span class="badge inativo">desativado</span>'}</h3>
+        <div class="acoes">${m.open_check_id ? `<a class="btn btn-sm btn-primario" href="#/ordens/${m.open_work_order_id}?aba=checklist"><i data-lucide="list-checks"></i> Abrir checklist da ${esc(m.open_work_order_number)}</a>`
+          : gerar && m.paim_active ? `<button class="btn btn-sm btn-primario" data-gerar="${m.id}"><i data-lucide="file-plus"></i> Gerar OS</button>` : ''}
+          ${planejar ? `<a class="btn btn-sm" href="#/paim/${m.paim_id}/editar"><i data-lucide="calendar-cog"></i> Mudar data</a>` : ''}</div></div>
+        <div class="card-corpo"><div class="ficha-indicadores os-indicadores" style="margin-top:0;padding-top:0;border-top:0">
+          ${info('Frequência', m.interval_days == null ? '<span class="badge aviso">A definir</span>' : `<b>${esc(pm.frequencia(m.interval_days))}</b>`)}
+          ${info('Próxima data', m.next_due_date ? `<b>${fmtData(m.next_due_date)}</b>` : '<span class="muted">—</span>')}
+          ${info('Última vez', m.last_done_at ? `<b>${fmtData(m.last_done_at.slice(0, 10))}</b>` : '<span class="muted">—</span>')}
+          ${info('Situação', situacaoPaim(m))}
+          ${info('Itens do checklist', `<b>${p.items_count ?? '—'}</b>`)}
+        </div></div></div>`; }).join('')
+    : `<div class="card secao"><div class="card-corpo">${vazio({ icone: 'clipboard-check', titulo: 'Esta máquina não está em nenhum PAIM',
+        texto: planejar ? 'Para colocar, abra o PAIM do tipo desta máquina, toque em Editar e marque a máquina na lista.' : '' })}</div></div>`}
+    <div class="card secao"><div class="card-titulo"><h3><i data-lucide="history"></i> Histórico do PAIM nesta máquina</h3></div><div id="tab-paim-hist"></div></div>`;
+
+  corpo.querySelectorAll('[data-gerar]').forEach((b) => b.addEventListener('click', () => {
+    const i = ligacoesPaim.findIndex((m) => m.id === b.dataset.gerar);
+    abrirGerarOS(ligacoesPaim[i], paims[i]?.items_count ?? 0);
+  }));
+
+  montarTabela(corpo.querySelector('#tab-paim-hist'), {
+    linhas: hist, busca: false, porPagina: 15,
+    aoClicar: (id) => { location.hash = `#/ordens/${hist.find((c) => c.id === id).work_order_id}?aba=checklist`; },
+    vazioHtml: vazio({ icone: 'calendar', titulo: 'O PAIM ainda não foi feito nesta máquina', texto: 'Cada OS gerada pelo PAIM aparece aqui.' }),
+    colunas: [
+      { titulo: 'OS', valor: (c) => c.work_order_number, primaria: true, render: (c) => `<b>${esc(c.work_order_number)}</b><div class="small muted">${esc(c.paim_name)} · rev. ${pm.revisao(c.revision)}</div>` },
+      { titulo: 'Quando', valor: (c) => c.done_at || c.created_at, render: (c) => `<span class="badge ${STATUS_CHECK[c.status].classe}">${esc(STATUS_CHECK[c.status].nome)}</span>
+        <div class="small muted">${c.done_at ? `feito em ${fmtDataHora(c.done_at)}` : `gerada em ${fmtData(c.created_at.slice(0, 10))}`}</div>` },
+      { titulo: 'Resultado', valor: (c) => Number(c.pending_count), render: (c) => `${c.answered_count} de ${c.items_count}${Number(c.pending_count) ? ` · <span class="badge aviso">${c.pending_count} pendência${c.pending_count == 1 ? '' : 's'}</span>` : ''}` },
+    ],
+  });
 }
 
 async function abaPreditiva(corpo, e) {

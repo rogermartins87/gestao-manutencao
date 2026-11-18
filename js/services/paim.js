@@ -34,7 +34,8 @@ export const itens = async (id) => ok(await sb.from('paim_items').select('*').eq
 export const maquinas = async (id) => ok(await sb.from('vw_paim_equipment').select('*').eq('paim_id', id).order('equipment_tag'));
 export const todasMaquinas = async () => daPlanta(ok(await sb.from('vw_paim_equipment').select('*').order('next_due_date', { ascending: true, nullsFirst: false })));
 export const historico = async (id) => ok(await sb.from('vw_paim_checks').select('*').eq('paim_id', id).order('created_at', { ascending: false }).limit(200));
-export const doEquipamento = async (eqId) => ok(await sb.from('vw_paim_equipment').select('*').eq('equipment_id', eqId));
+export const doEquipamento = async (eqId) => ok(await sb.from('vw_paim_equipment').select('*').eq('equipment_id', eqId).order('paim_name'));
+export const historicoDoEquipamento = async (eqId) => ok(await sb.from('vw_paim_checks').select('*').eq('equipment_id', eqId).order('created_at', { ascending: false }).limit(200));
 
 export const salvar = async (id, dados) => ok(await sb.rpc('salvar_paim', { p_id: id || null, p: dados }));
 export const gerarOS = async (ligacao, responsavel = null, prazo = null) =>
